@@ -41,18 +41,27 @@ async function generateWithGemini(requirements, fileName = null) {
     },
   })
 
-  const result = await model.generateContent(userMessage)
-  const text   = result.response.text()
-  const testCases = parseResponse(text)
+  try {
+    const result = await model.generateContent(userMessage)
+    const text   = result.response.text()
+    const testCases = parseResponse(text)
 
-  if (testCases.length === 0) {
-    throw new Error('Gemini returned an empty or unparseable response. Please try again.')
-  }
+    if (testCases.length === 0) {
+      throw new Error('Gemini returned an empty or unparseable response. Please try again.')
+    }
 
-  return {
-    testCases,
-    model:    'gemini-2.0-flash',
-    provider: 'Google Gemini',
+    return {
+      testCases,
+      model:    'gemini-2.0-flash',
+      provider: 'Google Gemini',
+    }
+  } catch (err) {
+    if (err.message?.includes('API_KEY_SERVICE_BLOCKED')) {
+      throw new Error(
+        'Gemini API Service is blocked for this project. Enable "Generative Language API" in Google Cloud Console, or use the Groq provider.'
+      )
+    }
+    throw err
   }
 }
 
