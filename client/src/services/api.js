@@ -34,11 +34,26 @@ api.interceptors.response.use(
 
 /**
  * POST /api/generate
- * Send plain-text requirements → receive AI-generated test cases
- * @param {{ requirements: string, fileName?: string, fileContent?: string }} payload
+ * Send requirements to the selected AI provider → receive structured test cases
+ * @param {{
+ *   requirements:  string,
+ *   fileName?:     string,
+ *   fileContent?:  string,
+ *   provider?:     'gemini'|'groq',
+ *   model?:        string
+ * }} payload
  */
 export async function generateTestCases(payload) {
   const { data } = await api.post('/generate', payload)
+  return data
+}
+
+/**
+ * GET /api/generate/providers
+ * Returns which AI providers are currently configured on the backend
+ */
+export async function getProviders() {
+  const { data } = await api.get('/generate/providers')
   return data
 }
 

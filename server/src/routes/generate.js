@@ -1,20 +1,39 @@
 'use strict'
 
-const express = require('express')
-const router  = express.Router()
+const express    = require('express')
+const router     = express.Router()
+const { generate, PROVIDERS } = require('../services/aiProvider')
 
 /**
  * POST /api/generate
  *
- * Receives: { requirements: string, fileName?: string, fileContent?: string }
- * Returns:  { status, testCases, meta }
+ * Request body:
+ * {
+ *   requirements:  string       — pasted requirement text
+ *   fileName?:     string       — original file name (for context)
+ *   fileContent?:  string       — extracted file text (.txt/.md/.csv)
+ *   provider?:     'gemini'|'groq'  — optional explicit model choice
+ *   model?:        string       — optional specific Groq model override
+ * }
  *
- * Story 6 stub — real Gemini AI integration comes in Story 4 (backend story).
+ * Response:
+ * {
+ *   status:    'ok',
+ *   testCases: Array<TestCase>,
+ *   meta:      { source, fileName, charCount, generatedAt, provider, model, fallback? }
+ * }
  */
 router.post('/', async (req, res, next) => {
   try {
-    const { requirements = '', fileName, fileContent } = req.body
+    const {
+      requirements = '',
+      fileName,
+      fileContent,
+      provider,
+      model,
+    } = req.body
 
+    // Basic validation
     if (!requirements.trim() && !fileContent) {
       return res.status(400).json({
         status:  'error',
@@ -22,50 +41,65 @@ router.post('/', async (req, res, next) => {
       })
     }
 
-    /* ──────────────────────────────────────────────────────
-       TODO (Story 4): Replace this stub with a real Gemini call
-       ────────────────────────────────────────────────────── */
-    const stubTestCases = [
-      {
-        id:          'TC-001',
-        title:       'Valid input produces expected output',
-        type:        'Positive',
-        steps:       ['Provide valid input', 'Submit the form', 'Observe the result'],
-        expected:    'System processes input successfully and shows confirmation.',
-        priority:    'High',
-      },
-      {
-        id:          'TC-002',
-        title:       'Empty input is rejected',
-        type:        'Negative',
-        steps:       ['Leave all fields empty', 'Submit the form'],
-        expected:    'Validation error is displayed. No request is sent to the server.',
-        priority:    'High',
-      },
-      {
-        id:          'TC-003',
-        title:       'Boundary value at maximum length',
-        type:        'Edge Case',
-        steps:       ['Enter input at exactly the maximum allowed length', 'Submit the form'],
-        expected:    'System accepts the input and processes it correctly.',
-        priority:    'Medium',
-      },
-    ]
+    // Validate provider if explicitly supplied
+    if (provider && !Object.values(PROVIDERS).includes(provider)) {
+      return res.status(400).json({
+        status:  'error',
+        message: `Invalid provider "${provider}". Valid options: ${Object.values(PROVIDERS).join(', ')}`,
+      })
+    }
+
+    const result = await generate({
+      requirements,
+      fileName,
+      fileContent,
+      provider,
+      model,
+    })
 
     return res.status(200).json({
-      status: 'ok',
-      meta: {
-        source:      fileName ? 'file' : 'text',
-        fileName:    fileName ?? null,
-        charCount:   (requirements + (fileContent ?? '')).length,
-        generatedAt: new Date().toISOString(),
-        model:       'stub (Gemini integration pending)',
-      },
-      testCases: stubTestCases,
+      status:    'ok',
+      testCases: result.testCases,
+      meta:      result.meta,
     })
   } catch (err) {
+    // Surface configuration errors with a helpful 503 (not 500)
+    if (
+      err.message?.includes('not set') ||
+      err.message?.includes('not configured') ||
+      err.message?.includes('No AI provider')
+    ) {
+      return res.status(503).json({
+        status:  'error',
+        message: err.message,
+      })
+    }
     next(err)
   }
+})
+
+/**
+ * GET /api/generate/providers
+ * Returns which AI providers are currently configured & available.
+ */
+router.get('/providers', (_req, res) => {
+  res.json({
+    status: 'ok',
+    providers: [
+      {
+        id:          PROVIDERS.GEMINI,
+        name:        'Google Gemini 2.0 Flash',
+        available:   !!process.env.GEMINI_API_KEY,
+        description: 'Fast, accurate — free via Google AI Studio',
+      },
+      {
+        id:          PROVIDERS.GROQ,
+        name:        'Groq (Llama 4 Scout)',
+        available:   !!process.env.GROQ_API_KEY,
+        description: 'Ultra-fast Llama 4 — free via Groq Console',
+      },
+    ],
+  })
 })
 
 module.exports = router

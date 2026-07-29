@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import Navbar from '../components/Navbar'
-import { generateTestCases } from '../services/api'
+import { generateTestCases, getProviders } from '../services/api'
 
 /* ── Shared layout helpers ──────────────────────────────────── */
 const container = {
@@ -66,14 +66,35 @@ function readAsText(file) {
   })
 }
 
+const PRIORITY_COLORS = {
+  High:   { bg: 'rgba(239,68,68,0.15)',   color: '#f87171', border: 'rgba(239,68,68,0.3)' },
+  Medium: { bg: 'rgba(245,158,11,0.15)',  color: '#fbbf24', border: 'rgba(245,158,11,0.3)' },
+  Low:    { bg: 'rgba(34,197,94,0.15)',   color: '#4ade80', border: 'rgba(34,197,94,0.3)'  },
+}
+const TYPE_COLORS = {
+  Positive:   '#4ade80',
+  Negative:   '#f87171',
+  'Edge Case':'#fbbf24',
+  Security:   '#c084fc',
+}
+
 export default function HomePage() {
   const [requirements, setRequirements] = useState('')
-  const [file,         setFile]         = useState(null)          // { name, content }
+  const [file,         setFile]         = useState(null)
   const [isDragging,   setIsDragging]   = useState(false)
   const [isLoading,    setIsLoading]    = useState(false)
   const [error,        setError]        = useState(null)
   const [result,       setResult]       = useState(null)
+  const [provider,     setProvider]     = useState('auto')   // 'auto'|'gemini'|'groq'
+  const [providers,    setProviders]    = useState([])        // available providers from backend
   const fileInputRef = useRef(null)
+
+  /* Fetch which providers are configured on the backend */
+  useEffect(() => {
+    getProviders()
+      .then(d => setProviders(d.providers ?? []))
+      .catch(() => {}) // silent — backend may not be running yet
+  }, [])
 
   /* ── File processing ──────────────────────────────────────── */
   const processFile = useCallback(async (rawFile) => {
@@ -108,7 +129,7 @@ export default function HomePage() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  /* ── Generate — real API call ─────────────────────────────── */
+  /* ── Generate — real AI call ─────────────────────────────── */
   const handleGenerate = async () => {
     if (!requirements.trim() && !file) return
     setIsLoading(true)
@@ -118,7 +139,8 @@ export default function HomePage() {
     try {
       const payload = {
         requirements: requirements.trim(),
-        ...(file && { fileName: file.name, fileContent: file.content }),
+        ...(file     && { fileName: file.name, fileContent: file.content }),
+        ...(provider !== 'auto' && { provider }),
       }
       const data = await generateTestCases(payload)
       setResult(data)
@@ -391,7 +413,43 @@ export default function HomePage() {
                   </div>
                 )}
 
-                {/* Generate Button — Story 6 */}
+                {/* ── AI Provider Selector ──────────────────────── */}
+                <div>
+                  <label htmlFor="provider-select" style={{
+                    display: 'block', fontSize: '0.875rem', fontWeight: 500,
+                    color: 'var(--color-text-muted)', marginBottom: '0.5rem',
+                  }}>
+                    AI Model
+                  </label>
+                  <select
+                    id="provider-select"
+                    value={provider}
+                    onChange={e => setProvider(e.target.value)}
+                    style={{
+                      width: '100%', padding: '0.75rem 1rem', borderRadius: '0.625rem',
+                      background: 'var(--color-surface-2)',
+                      border: '1px solid var(--color-border)',
+                      color: 'var(--color-text)',
+                      fontSize: '0.875rem', fontFamily: 'Inter, sans-serif',
+                      outline: 'none', cursor: 'pointer',
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    <option value="auto">⚡ Auto (best available)</option>
+                    {providers.map(p => (
+                      <option key={p.id} value={p.id} disabled={!p.available}>
+                        {p.available ? '✅' : '❌'} {p.name}{!p.available ? ' — key not set' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {provider !== 'auto' && providers.find(p => p.id === provider) && (
+                    <p style={{ fontSize: '0.7rem', color: '#475569', marginTop: '0.3rem' }}>
+                      {providers.find(p => p.id === provider)?.description}
+                    </p>
+                  )}
+                </div>
+
+                {/* ── Generate Button ──────────────────────────── */}
                 <button
                   id="generate-btn"
                   onClick={handleGenerate}
@@ -420,7 +478,7 @@ export default function HomePage() {
                         <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeOpacity="0.25" />
                         <path d="M21 12a9 9 0 00-9-9" />
                       </svg>
-                      Generating Test Cases…
+                      Generating with {provider === 'groq' ? 'Groq / Llama' : provider === 'gemini' ? 'Gemini' : 'AI'}…
                     </>
                   ) : (
                     <>
@@ -439,41 +497,120 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* ── Result Preview (Story 6) ──────────────────── */}
-            {result && (
-              <div id="result-preview" style={{
-                marginTop: '1.5rem',
-                borderRadius: '1.25rem', overflow: 'hidden',
-                background: 'var(--color-surface)',
-                border: '1px solid rgba(99,102,241,0.3)',
-                boxShadow: '0 24px 80px rgba(0,0,0,0.4)',
-              }}>
+            {/* ── Test Case Results ─────────────────────────── */}
+            {result && result.testCases && result.testCases.length > 0 && (
+              <div id="result-section" style={{ marginTop: '2rem' }}>
+                {/* Header */}
                 <div style={{
-                  padding: '1rem 1.5rem',
-                  borderBottom: '1px solid var(--color-border)',
-                  display: 'flex', alignItems: 'center', gap: '0.75rem',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem',
                 }}>
-                  <div style={{
-                    width: 8, height: 8, borderRadius: '50%',
-                    background: '#22c55e', boxShadow: '0 0 8px #22c55e',
-                  }} />
-                  <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-text)' }}>
-                    AI Response Received
-                  </h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e' }} />
+                    <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--color-text)' }}>
+                      {result.testCases.length} Test Cases Generated
+                    </h3>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{
+                      fontSize: '0.7rem', padding: '0.2rem 0.6rem', borderRadius: '9999px',
+                      background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)',
+                      color: '#818cf8', fontWeight: 600,
+                    }}>
+                      {result.meta?.provider ?? 'AI'}
+                    </span>
+                    <span style={{ fontSize: '0.7rem', color: '#475569' }}>
+                      {result.meta?.model}
+                    </span>
+                  </div>
                 </div>
-                <pre style={{
-                  padding: '1.25rem 1.5rem',
-                  fontSize: '0.8rem',
-                  color: 'var(--color-text-muted)',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                  margin: 0,
-                  maxHeight: '400px',
-                  overflowY: 'auto',
-                  fontFamily: 'Inter, monospace',
-                }}>
-                  {JSON.stringify(result, null, 2)}
-                </pre>
+
+                {/* Test Case Cards */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                  {result.testCases.map((tc, i) => {
+                    const pColor = PRIORITY_COLORS[tc.priority] ?? PRIORITY_COLORS.Medium
+                    const tColor = TYPE_COLORS[tc.type] ?? '#94a3b8'
+                    return (
+                      <div
+                        key={tc.id ?? i}
+                        id={`tc-${tc.id ?? i}`}
+                        style={{
+                          borderRadius: '0.875rem', padding: '1.25rem',
+                          background: 'var(--color-surface)',
+                          border: '1px solid var(--color-border)',
+                          transition: 'transform 0.15s, border-color 0.15s',
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.transform     = 'translateX(4px)'
+                          e.currentTarget.style.borderColor   = 'rgba(99,102,241,0.35)'
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.transform     = 'translateX(0)'
+                          e.currentTarget.style.borderColor   = 'rgba(255,255,255,0.08)'
+                        }}
+                      >
+                        {/* Card header */}
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.875rem', flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#475569', fontFamily: 'monospace' }}>{tc.id}</span>
+                            <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '9999px', background: 'rgba(255,255,255,0.06)', color: tColor, border: `1px solid ${tColor}40`, fontWeight: 600 }}>
+                              {tc.type}
+                            </span>
+                          </div>
+                          <span style={{
+                            fontSize: '0.7rem', padding: '0.15rem 0.6rem', borderRadius: '9999px',
+                            background: pColor.bg, color: pColor.color,
+                            border: `1px solid ${pColor.border}`, fontWeight: 700, flexShrink: 0,
+                          }}>
+                            {tc.priority}
+                          </span>
+                        </div>
+
+                        <h4 style={{ margin: '0 0 0.875rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-text)', lineHeight: 1.4 }}>
+                          {tc.title}
+                        </h4>
+
+                        {/* Steps */}
+                        {tc.steps?.length > 0 && (
+                          <div style={{ marginBottom: '0.75rem' }}>
+                            <p style={{ fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.4rem' }}>Steps</p>
+                            <ol style={{ margin: 0, paddingLeft: '1.25rem' }}>
+                              {tc.steps.map((step, si) => (
+                                <li key={si} style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '0.2rem', lineHeight: 1.5 }}>{step}</li>
+                              ))}
+                            </ol>
+                          </div>
+                        )}
+
+                        {/* Expected result */}
+                        {tc.expected && (
+                          <div style={{
+                            padding: '0.6rem 0.875rem', borderRadius: '0.5rem',
+                            background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.2)',
+                          }}>
+                            <p style={{ fontSize: '0.7rem', fontWeight: 700, color: '#4ade80', marginBottom: '0.2rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Expected Result</p>
+                            <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0, lineHeight: 1.5 }}>{tc.expected}</p>
+                          </div>
+                        )}
+
+                        {/* Tags */}
+                        {tc.tags?.length > 0 && (
+                          <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
+                            {tc.tags.map((tag, ti) => (
+                              <span key={ti} style={{ fontSize: '0.65rem', padding: '0.1rem 0.5rem', borderRadius: '9999px', background: 'rgba(99,102,241,0.1)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.2)' }}>#{tag}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Meta footer */}
+                <p style={{ fontSize: '0.7rem', color: '#334155', textAlign: 'center', marginTop: '1rem' }}>
+                  Generated {result.meta?.generatedAt ? new Date(result.meta.generatedAt).toLocaleTimeString() : ''}
+                  {result.meta?.fallback ? ' · Used fallback provider' : ''}
+                </p>
               </div>
             )}
           </div>
