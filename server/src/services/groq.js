@@ -16,12 +16,12 @@ function getClient() {
 
 /**
  * Available free-tier Groq models — ordered by quality descending.
- * The selector tries them in order and falls back on rate-limit errors.
+ * Updated to current live models (July 2026).
+ * Full list: https://console.groq.com/docs/models
  */
 const GROQ_MODELS = [
-  'llama-4-scout-17b-16e-instruct',   // Llama 4 Scout  — fast, free, good quality
-  'llama3-70b-8192',                   // Llama 3 70B    — strong reasoning
-  'llama3-8b-8192',                    // Llama 3 8B     — fastest fallback
+  'llama-3.3-70b-versatile',   // Llama 3.3 70B  — best quality on free tier
+  'llama-3.1-8b-instant',      // Llama 3.1  8B  — fastest fallback
 ]
 
 /**

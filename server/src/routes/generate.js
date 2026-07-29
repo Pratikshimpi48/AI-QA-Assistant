@@ -94,9 +94,9 @@ router.get('/providers', (_req, res) => {
       },
       {
         id:          PROVIDERS.GROQ,
-        name:        'Groq (Llama 4 Scout)',
+        name:        'Groq (Llama 3.3 70B)',
         available:   !!process.env.GROQ_API_KEY,
-        description: 'Ultra-fast Llama 4 — free via Groq Console',
+        description: 'Ultra-fast Llama 3.3 70B — free via Groq Console',
       },
     ],
   })
