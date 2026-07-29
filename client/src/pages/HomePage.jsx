@@ -1,10 +1,11 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import Navbar from '../components/Navbar'
+import { generateTestCases } from '../services/api'
 
 /* ── Shared layout helpers ──────────────────────────────────── */
 const container = {
   width: '100%',
-  maxWidth: '780px',
+  maxWidth: '820px',
   margin: '0 auto',
   padding: '0 1.5rem',
 }
@@ -14,7 +15,8 @@ const features = [
   {
     id: 'feature-speed',
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
       </svg>
     ),
@@ -24,7 +26,8 @@ const features = [
   {
     id: 'feature-quality',
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     ),
@@ -34,7 +37,8 @@ const features = [
   {
     id: 'feature-export',
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
       </svg>
     ),
@@ -45,141 +49,156 @@ const features = [
 
 /* ── How it works steps ─────────────────────────────────────── */
 const steps = [
-  { id: 'step-paste',    num: '01', title: 'Paste Requirements', desc: 'Copy your user stories, BRDs, or any requirements text into the editor.' },
-  { id: 'step-generate', num: '02', title: 'Generate with AI',   desc: 'Our AI model analyses context and produces structured test cases instantly.' },
-  { id: 'step-export',   num: '03', title: 'Review & Export',    desc: 'Edit, refine, and export your test cases to any project management tool.' },
+  { id: 'step-paste',    num: '01', title: 'Paste Requirements',  desc: 'Copy your user stories, BRDs, or any requirements text into the editor.' },
+  { id: 'step-generate', num: '02', title: 'Generate with AI',    desc: 'Our AI model analyses context and produces structured test cases instantly.' },
+  { id: 'step-export',   num: '03', title: 'Review & Export',     desc: 'Edit, refine, and export your test cases to any project management tool.' },
 ]
+
+const ACCEPTED_TYPES = '.txt,.pdf,.docx,.md,.csv'
+
+/* ── Read file as text (for .txt / .md / .csv) ──────────────── */
+function readAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload  = (e) => resolve(e.target.result)
+    reader.onerror = ()  => reject(new Error('Failed to read file'))
+    reader.readAsText(file)
+  })
+}
 
 export default function HomePage() {
   const [requirements, setRequirements] = useState('')
-  const [fileName, setFileName]         = useState(null)
-  const [isDragging, setIsDragging]     = useState(false)
-  const [isLoading, setIsLoading]       = useState(false)
+  const [file,         setFile]         = useState(null)          // { name, content }
+  const [isDragging,   setIsDragging]   = useState(false)
+  const [isLoading,    setIsLoading]    = useState(false)
+  const [error,        setError]        = useState(null)
+  const [result,       setResult]       = useState(null)
   const fileInputRef = useRef(null)
 
+  /* ── File processing ──────────────────────────────────────── */
+  const processFile = useCallback(async (rawFile) => {
+    if (!rawFile) return
+    const textTypes = ['text/plain', 'text/markdown', 'text/csv', 'text/x-markdown']
+    const isTextLike = textTypes.some(t => rawFile.type.startsWith(t)) ||
+      rawFile.name.match(/\.(txt|md|csv)$/i)
+
+    let content = null
+    if (isTextLike) {
+      try { content = await readAsText(rawFile) } catch { /* ignore */ }
+    }
+    setFile({ name: rawFile.name, content, rawFile })
+    setError(null)
+  }, [])
+
   const handleFileChange = (e) => {
-    const file = e.target.files?.[0]
-    if (file) setFileName(file.name)
+    const f = e.target.files?.[0]
+    if (f) processFile(f)
   }
 
   const handleDrop = (e) => {
     e.preventDefault()
     setIsDragging(false)
-    const file = e.dataTransfer.files?.[0]
-    if (file) setFileName(file.name)
+    const f = e.dataTransfer.files?.[0]
+    if (f) processFile(f)
   }
 
+  const removeFile = (e) => {
+    e.stopPropagation()
+    setFile(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  /* ── Generate — real API call ─────────────────────────────── */
   const handleGenerate = async () => {
-    if (!requirements.trim() && !fileName) return
+    if (!requirements.trim() && !file) return
     setIsLoading(true)
-    await new Promise((r) => setTimeout(r, 1500))
-    setIsLoading(false)
+    setError(null)
+    setResult(null)
+
+    try {
+      const payload = {
+        requirements: requirements.trim(),
+        ...(file && { fileName: file.name, fileContent: file.content }),
+      }
+      const data = await generateTestCases(payload)
+      setResult(data)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const canGenerate = requirements.trim().length > 0 || !!fileName
+  const canGenerate = (requirements.trim().length > 0 || !!file) && !isLoading
 
   return (
     <div style={{ background: 'var(--color-bg)', minHeight: '100vh', width: '100%' }}>
       <Navbar />
 
       {/* Background radial glows */}
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0,
-          background: `
-            radial-gradient(ellipse 60% 50% at 20% 20%, rgba(99,102,241,0.12) 0%, transparent 70%),
-            radial-gradient(ellipse 50% 40% at 80% 80%, rgba(6,182,212,0.10) 0%, transparent 70%)
-          `,
-        }}
-      />
+      <div aria-hidden="true" style={{
+        position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0,
+        background: `
+          radial-gradient(ellipse 60% 50% at 20% 20%, rgba(99,102,241,0.12) 0%, transparent 70%),
+          radial-gradient(ellipse 50% 40% at 80% 80%, rgba(6,182,212,0.10) 0%, transparent 70%)
+        `,
+      }} />
 
       <main style={{ position: 'relative', zIndex: 1, width: '100%' }}>
 
-        {/* ══════════════════════════════════════════════
-            HERO
-        ══════════════════════════════════════════════ */}
+        {/* ══ HERO ══════════════════════════════════════════════ */}
         <section style={{ paddingTop: '8rem', paddingBottom: '3rem', width: '100%' }}>
           <div style={{ ...container, textAlign: 'center' }}>
-
             {/* Badge */}
-            <div
-              id="hero-badge"
-              className="animate-fade-in-up"
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-                padding: '0.375rem 1rem', borderRadius: '9999px',
-                background: 'rgba(99,102,241,0.15)',
-                border: '1px solid rgba(99,102,241,0.35)',
-                color: '#818cf8', fontSize: '0.75rem', fontWeight: 600,
-                marginBottom: '2rem',
-              }}
-            >
+            <div id="hero-badge" className="animate-fade-in-up" style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+              padding: '0.375rem 1rem', borderRadius: '9999px',
+              background: 'rgba(99,102,241,0.15)',
+              border: '1px solid rgba(99,102,241,0.35)',
+              color: '#818cf8', fontSize: '0.75rem', fontWeight: 600,
+              marginBottom: '2rem',
+            }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366f1', boxShadow: '0 0 6px #6366f1', display: 'inline-block' }} />
               Powered by Gemini AI
             </div>
 
             {/* Headline */}
-            <h1
-              id="hero-headline"
-              className="animate-fade-in-up-delay"
-              style={{
-                fontSize: 'clamp(2.25rem, 6vw, 3.75rem)',
-                fontWeight: 800,
-                lineHeight: 1.15,
-                marginBottom: '1.5rem',
-                background: 'linear-gradient(135deg, #f1f5f9 0%, #818cf8 50%, #06b6d4 100%)',
-                backgroundSize: '200% 200%',
-                animation: 'gradient-shift 6s ease infinite, fadeInUp 0.6s ease 0.15s both',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}
-            >
+            <h1 id="hero-headline" className="animate-fade-in-up-delay" style={{
+              fontSize: 'clamp(2.25rem, 6vw, 3.75rem)',
+              fontWeight: 800, lineHeight: 1.15, marginBottom: '1.5rem',
+              background: 'linear-gradient(135deg, #f1f5f9 0%, #818cf8 50%, #06b6d4 100%)',
+              backgroundSize: '200% 200%',
+              animation: 'gradient-shift 6s ease infinite, fadeInUp 0.6s ease 0.15s both',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+            }}>
               Generate Test Cases<br />from Requirements
             </h1>
 
             {/* Subtitle */}
-            <p
-              id="hero-subtitle"
-              className="animate-fade-in-up-delay-2"
-              style={{
-                fontSize: '1.1rem',
-                lineHeight: 1.7,
-                color: 'var(--color-text-muted)',
-                maxWidth: '520px',
-                margin: '0 auto 2.5rem',
-              }}
-            >
+            <p id="hero-subtitle" className="animate-fade-in-up-delay-2" style={{
+              fontSize: '1.1rem', lineHeight: 1.7,
+              color: 'var(--color-text-muted)',
+              maxWidth: '520px', margin: '0 auto 2.5rem',
+            }}>
               Paste your user stories or upload a document — our AI instantly crafts
               comprehensive, structured test cases so your team ships with confidence.
             </p>
           </div>
         </section>
 
-        {/* ══════════════════════════════════════════════
-            FEATURE PILLS
-        ══════════════════════════════════════════════ */}
+        {/* ══ FEATURE PILLS ════════════════════════════════════ */}
         <section style={{ paddingBottom: '2.5rem', width: '100%' }}>
-          <div style={{ ...container }}>
-            <div style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              justifyContent: 'center',
-              gap: '1rem',
-            }}>
+          <div style={container}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '1rem' }}>
               {features.map((f) => (
-                <div
-                  key={f.id}
-                  id={f.id}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '0.75rem',
-                    padding: '0.75rem 1.25rem', borderRadius: '0.75rem',
-                    background: 'var(--color-surface)',
-                    border: '1px solid var(--color-border)',
-                    flex: '1 1 200px', maxWidth: '240px',
-                    transition: 'transform 0.2s',
-                    cursor: 'default',
-                  }}
+                <div key={f.id} id={f.id} style={{
+                  display: 'flex', alignItems: 'center', gap: '0.75rem',
+                  padding: '0.75rem 1.25rem', borderRadius: '0.75rem',
+                  background: 'var(--color-surface)',
+                  border: '1px solid var(--color-border)',
+                  flex: '1 1 200px', maxWidth: '240px',
+                  transition: 'transform 0.2s', cursor: 'default',
+                }}
                   onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-3px)')}
                   onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
                 >
@@ -194,37 +213,28 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ══════════════════════════════════════════════
-            MAIN INPUT CARD
-        ══════════════════════════════════════════════ */}
+        {/* ══ MAIN INPUT CARD ══════════════════════════════════ */}
         <section id="generate" style={{ paddingBottom: '5rem', width: '100%' }}>
           <div style={container}>
-            <div
-              style={{
-                width: '100%',
-                borderRadius: '1.25rem',
-                overflow: 'hidden',
-                background: 'var(--color-surface)',
-                border: '1px solid var(--color-border)',
-                boxShadow: '0 24px 80px rgba(0,0,0,0.5)',
-              }}
-            >
+            <div style={{
+              width: '100%', borderRadius: '1.25rem', overflow: 'hidden',
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              boxShadow: '0 24px 80px rgba(0,0,0,0.5)',
+            }}>
               {/* Card header */}
-              <div
-                style={{
-                  padding: '1.25rem 2rem',
-                  display: 'flex', alignItems: 'center', gap: '0.75rem',
-                  borderBottom: '1px solid var(--color-border)',
-                }}
-              >
-                <div
-                  style={{
-                    width: 36, height: 36, borderRadius: '0.5rem',
-                    background: 'rgba(99,102,241,0.18)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                  }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <div style={{
+                padding: '1.25rem 2rem',
+                display: 'flex', alignItems: 'center', gap: '0.75rem',
+                borderBottom: '1px solid var(--color-border)',
+              }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: '0.5rem',
+                  background: 'rgba(99,102,241,0.18)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#818cf8"
+                    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
                     <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
                   </svg>
@@ -234,7 +244,7 @@ export default function HomePage() {
                     Requirements Input
                   </h2>
                   <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', margin: 0 }}>
-                    Paste your requirements or upload a file below
+                    Paste your user story or upload a requirement document
                   </p>
                 </div>
               </div>
@@ -242,19 +252,21 @@ export default function HomePage() {
               {/* Card body */}
               <div style={{ padding: '1.75rem 2rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
-                {/* Textarea */}
+                {/* Textarea — Story 5 */}
                 <div>
-                  <label
-                    htmlFor="requirements-input"
-                    style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}
-                  >
-                    Paste Requirements
+                  <label htmlFor="requirements-input" style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    fontSize: '0.875rem', fontWeight: 500,
+                    color: 'var(--color-text-muted)', marginBottom: '0.5rem',
+                  }}>
+                    <span>Paste Requirements / User Story</span>
+                    <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{requirements.length} chars</span>
                   </label>
                   <textarea
                     id="requirements-input"
                     value={requirements}
-                    onChange={(e) => setRequirements(e.target.value)}
-                    rows={8}
+                    onChange={(e) => { setRequirements(e.target.value); setError(null) }}
+                    rows={9}
                     placeholder={`e.g.\nAs a user, I want to log in with my email and password so that I can access my account.\n\nAcceptance Criteria:\n• Valid credentials → redirect to dashboard\n• Invalid credentials → show error message\n• Forgot password link available`}
                     style={{
                       width: '100%', display: 'block',
@@ -267,14 +279,17 @@ export default function HomePage() {
                       padding: '1rem',
                       fontFamily: 'Inter, sans-serif',
                       boxSizing: 'border-box',
-                      transition: 'border-color 0.2s',
+                      transition: 'border-color 0.2s, box-shadow 0.2s',
                     }}
-                    onFocus={(e) => (e.target.style.borderColor = 'rgba(99,102,241,0.6)')}
-                    onBlur={(e)  => (e.target.style.borderColor = 'rgba(255,255,255,0.08)')}
+                    onFocus={e => {
+                      e.target.style.borderColor = 'rgba(99,102,241,0.6)'
+                      e.target.style.boxShadow   = '0 0 0 3px rgba(99,102,241,0.1)'
+                    }}
+                    onBlur={e  => {
+                      e.target.style.borderColor = 'rgba(255,255,255,0.08)'
+                      e.target.style.boxShadow   = 'none'
+                    }}
                   />
-                  <p style={{ fontSize: '0.75rem', textAlign: 'right', color: 'var(--color-text-muted)', marginTop: '0.375rem' }}>
-                    {requirements.length} characters
-                  </p>
                 </div>
 
                 {/* Divider */}
@@ -284,10 +299,13 @@ export default function HomePage() {
                   <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
                 </div>
 
-                {/* File Upload */}
+                {/* File Upload — Story 5 */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>
-                    Upload a File
+                  <label style={{
+                    display: 'block', fontSize: '0.875rem', fontWeight: 500,
+                    color: 'var(--color-text-muted)', marginBottom: '0.5rem',
+                  }}>
+                    Upload Requirement Document
                   </label>
                   <div
                     id="file-drop-zone"
@@ -300,8 +318,7 @@ export default function HomePage() {
                       textAlign: 'center', cursor: 'pointer',
                       background: isDragging ? 'rgba(99,102,241,0.1)' : 'var(--color-surface-2)',
                       border: isDragging ? '2px dashed rgba(99,102,241,0.7)' : '2px dashed rgba(255,255,255,0.1)',
-                      boxSizing: 'border-box',
-                      transition: 'all 0.2s',
+                      boxSizing: 'border-box', transition: 'all 0.2s',
                     }}
                   >
                     <input
@@ -309,22 +326,27 @@ export default function HomePage() {
                       id="file-input"
                       type="file"
                       style={{ display: 'none' }}
-                      accept=".txt,.pdf,.docx,.md,.csv"
+                      accept={ACCEPTED_TYPES}
                       onChange={handleFileChange}
                     />
-                    {fileName ? (
+                    {file ? (
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" />
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1"
+                          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
                         </svg>
-                        <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#818cf8' }}>{fileName}</span>
+                        <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#818cf8' }}>{file.name}</span>
+                        {file.content && (
+                          <span style={{ fontSize: '0.7rem', color: '#475569' }}>({file.content.length} chars read)</span>
+                        )}
                         <button
                           id="remove-file-btn"
-                          onClick={(e) => { e.stopPropagation(); setFileName(null); fileInputRef.current.value = '' }}
+                          onClick={removeFile}
                           style={{
                             fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '0.375rem',
                             background: 'rgba(239,68,68,0.15)', color: '#f87171',
-                            border: 'none', cursor: 'pointer',
+                            border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif',
                           }}
                         >
                           Remove
@@ -332,8 +354,10 @@ export default function HomePage() {
                       </div>
                     ) : (
                       <>
-                        <svg style={{ margin: '0 auto 0.75rem', display: 'block' }} width="28" height="28" viewBox="0 0 24 24" fill="none"
-                          stroke={isDragging ? '#6366f1' : '#475569'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg style={{ margin: '0 auto 0.75rem', display: 'block' }} width="28" height="28"
+                          viewBox="0 0 24 24" fill="none"
+                          stroke={isDragging ? '#6366f1' : '#475569'}
+                          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
                           <polyline points="17 8 12 3 7 8" />
                           <line x1="12" y1="3" x2="12" y2="15" />
@@ -349,11 +373,29 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* Generate Button */}
+                {/* Error Banner — Story 6 */}
+                {error && (
+                  <div id="error-banner" style={{
+                    display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
+                    padding: '0.875rem 1rem', borderRadius: '0.75rem',
+                    background: 'rgba(239,68,68,0.1)',
+                    border: '1px solid rgba(239,68,68,0.3)',
+                  }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171"
+                      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <p style={{ fontSize: '0.875rem', color: '#f87171', margin: 0, lineHeight: 1.5 }}>{error}</p>
+                  </div>
+                )}
+
+                {/* Generate Button — Story 6 */}
                 <button
                   id="generate-btn"
                   onClick={handleGenerate}
-                  disabled={!canGenerate || isLoading}
+                  disabled={!canGenerate}
                   style={{
                     width: '100%', padding: '1rem', borderRadius: '0.75rem',
                     fontWeight: 700, fontSize: '1rem',
@@ -363,14 +405,14 @@ export default function HomePage() {
                       ? 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)'
                       : 'rgba(255,255,255,0.06)',
                     color: canGenerate ? '#fff' : '#475569',
-                    cursor: canGenerate && !isLoading ? 'pointer' : 'not-allowed',
-                    animation: canGenerate && !isLoading ? 'pulse-glow 3s ease-in-out infinite' : 'none',
+                    cursor: canGenerate ? 'pointer' : 'not-allowed',
+                    animation: canGenerate ? 'pulse-glow 3s ease-in-out infinite' : 'none',
                     boxShadow: canGenerate ? '0 8px 32px rgba(99,102,241,0.35)' : 'none',
                     transition: 'transform 0.2s, opacity 0.2s',
                     fontFamily: 'Inter, sans-serif',
                   }}
-                  onMouseEnter={(e) => { if (canGenerate && !isLoading) e.currentTarget.style.transform = 'translateY(-2px)' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)' }}
+                  onMouseEnter={e => { if (canGenerate) e.currentTarget.style.transform = 'translateY(-2px)' }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)' }}
                 >
                   {isLoading ? (
                     <>
@@ -382,7 +424,8 @@ export default function HomePage() {
                     </>
                   ) : (
                     <>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
                       </svg>
                       Generate Test Cases
@@ -395,12 +438,48 @@ export default function HomePage() {
                 </p>
               </div>
             </div>
+
+            {/* ── Result Preview (Story 6) ──────────────────── */}
+            {result && (
+              <div id="result-preview" style={{
+                marginTop: '1.5rem',
+                borderRadius: '1.25rem', overflow: 'hidden',
+                background: 'var(--color-surface)',
+                border: '1px solid rgba(99,102,241,0.3)',
+                boxShadow: '0 24px 80px rgba(0,0,0,0.4)',
+              }}>
+                <div style={{
+                  padding: '1rem 1.5rem',
+                  borderBottom: '1px solid var(--color-border)',
+                  display: 'flex', alignItems: 'center', gap: '0.75rem',
+                }}>
+                  <div style={{
+                    width: 8, height: 8, borderRadius: '50%',
+                    background: '#22c55e', boxShadow: '0 0 8px #22c55e',
+                  }} />
+                  <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-text)' }}>
+                    AI Response Received
+                  </h3>
+                </div>
+                <pre style={{
+                  padding: '1.25rem 1.5rem',
+                  fontSize: '0.8rem',
+                  color: 'var(--color-text-muted)',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  margin: 0,
+                  maxHeight: '400px',
+                  overflowY: 'auto',
+                  fontFamily: 'Inter, monospace',
+                }}>
+                  {JSON.stringify(result, null, 2)}
+                </pre>
+              </div>
+            )}
           </div>
         </section>
 
-        {/* ══════════════════════════════════════════════
-            HOW IT WORKS
-        ══════════════════════════════════════════════ */}
+        {/* ══ HOW IT WORKS ══════════════════════════════════════ */}
         <section id="how-it-works" style={{ paddingBottom: '6rem', width: '100%' }}>
           <div style={container}>
             <h2 style={{

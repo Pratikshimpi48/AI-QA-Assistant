@@ -4,7 +4,8 @@ const env     = require('./config/env')
 const express = require('express')
 const cors    = require('cors')
 
-const healthRouter = require('./routes/health')
+const healthRouter   = require('./routes/health')
+const generateRouter = require('./routes/generate')
 
 const app = express()
 
@@ -19,7 +20,8 @@ app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
 
 /* ── Routes ─────────────────────────────────────────── */
-app.use('/api/health', healthRouter)
+app.use('/api/health',   healthRouter)
+app.use('/api/generate', generateRouter)
 
 /* ── 404 handler ────────────────────────────────────── */
 app.use((req, res) => {
