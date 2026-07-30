@@ -30,29 +30,39 @@ async function generateWithGemini(requirements, fileName = null) {
   const genAI = getClient()
   const { systemPrompt, userMessage } = buildPrompt(requirements, fileName)
 
-  // gemini-2.0-flash is the recommended free-tier model (fast + capable)
+  // gemini-flash-latest is the active free-tier endpoint model
   const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
+    model: 'gemini-flash-latest',
     systemInstruction: systemPrompt,
     generationConfig: {
       temperature: 0.4,   // lower = more structured, consistent output
-      maxOutputTokens: 4096,
+      maxOutputTokens: 8192,
       responseMimeType: 'application/json',  // tells Gemini to output raw JSON
     },
   })
 
   try {
     const result = await model.generateContent(userMessage)
-    const text = result.response.text()
+    let text = ''
+    try {
+      text = result.response.text()
+    } catch {
+      // Fallback: extract text directly from candidates parts if response.text() fails
+      const candidate = result.response?.candidates?.[0]
+      const part = candidate?.content?.parts?.find(p => p.text)
+      text = part?.text || ''
+    }
+
     const testCases = parseResponse(text)
 
     if (testCases.length === 0) {
+      console.warn('[Gemini] Response could not be parsed into test cases. Raw preview:', text ? text.slice(0, 300) : '(empty)')
       throw new Error('Gemini returned an empty or unparseable response. Please try again.')
     }
 
     return {
       testCases,
-      model: 'gemini-2.0-flash',
+      model: 'gemini-flash-latest',
       provider: 'Google Gemini',
     }
   } catch (err) {

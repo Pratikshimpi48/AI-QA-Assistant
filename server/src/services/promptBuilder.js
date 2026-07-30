@@ -44,28 +44,64 @@ Each test case object MUST have these exact fields:
 
 /**
  * Parse the AI text response into a structured array of test cases.
- * Handles: raw JSON, JSON inside a markdown code block, partial JSON.
+ * Handles: raw JSON, markdown code blocks, partial/truncated JSON.
  *
  * @param {string} text
  * @returns {Array}
  */
 function parseResponse(text) {
-  // Strip markdown code fences if present
-  const cleaned = text
-    .replace(/^```(?:json)?\s*/i, '')
-    .replace(/\s*```\s*$/, '')
-    .trim()
+  if (!text || typeof text !== 'string') return []
 
-  // Try straight parse
+  // 1. Strip reasoning/thought blocks if present
+  let cleaned = text.replace(/<thought>[\s\S]*?<\/thought>/gi, '').trim()
+
+  // 2. Extract content inside ```json ... ``` or ``` ... ``` if present
+  const fenceMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)
+  if (fenceMatch && fenceMatch[1]) {
+    cleaned = fenceMatch[1].trim()
+  }
+
+  // 3. Try straight parse
   try {
     const parsed = JSON.parse(cleaned)
-    return Array.isArray(parsed) ? parsed : []
+    if (Array.isArray(parsed)) return parsed
+    if (parsed && Array.isArray(parsed.testCases)) return parsed.testCases
   } catch { /* continue */ }
 
-  // Try to extract the first [...] block
-  const match = cleaned.match(/\[[\s\S]*\]/)
-  if (match) {
-    try { return JSON.parse(match[0]) } catch { /* continue */ }
+  // 4. Try to extract outer [...] array block
+  const arrayMatch = cleaned.match(/\[\s*\{[\s\S]*\}\s*\]/)
+  if (arrayMatch) {
+    try {
+      const parsed = JSON.parse(arrayMatch[0])
+      if (Array.isArray(parsed)) return parsed
+    } catch {
+      // Try fixing trailing commas in JSON array
+      try {
+        const sanitized = arrayMatch[0].replace(/,\s*([\]\}])/g, '$1')
+        const parsed = JSON.parse(sanitized)
+        if (Array.isArray(parsed)) return parsed
+      } catch { /* continue */ }
+    }
+  }
+
+  // 5. Truncated JSON Repair: if response was cut off mid-stream, salvage completed objects
+  const startIdx = cleaned.indexOf('[')
+  if (startIdx !== -1) {
+    let jsonStr = cleaned.slice(startIdx).trim()
+    const lastObjectIdx = jsonStr.lastIndexOf('}')
+    if (lastObjectIdx !== -1) {
+      const truncatedArray = jsonStr.slice(0, lastObjectIdx + 1) + ']'
+      try {
+        const parsed = JSON.parse(truncatedArray)
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      } catch {
+        try {
+          const sanitized = truncatedArray.replace(/,\s*([\]\}])/g, '$1')
+          const parsed = JSON.parse(sanitized)
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed
+        } catch { /* continue */ }
+      }
+    }
   }
 
   return []
