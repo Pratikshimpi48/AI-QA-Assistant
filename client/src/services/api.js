@@ -158,6 +158,8 @@ export async function getUnreadCount() {
   return data
 }
 
+export const getUnreadNotificationCount = getUnreadCount
+
 export async function markNotificationAsRead(id) {
   const { data } = await api.patch(`/notifications/${id}/read`)
   return data

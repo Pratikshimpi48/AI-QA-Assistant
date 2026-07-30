@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { useAuth } from './AuthContext'
-import { getNotifications, getUnreadNotificationCount, markNotificationAsRead, markAllNotificationsAsRead } from '../services/api'
+import { getNotifications, getUnreadCount, markNotificationAsRead, markAllNotificationsAsRead } from '../services/api'
 
 const NotificationContext = createContext(null)
 
@@ -39,7 +39,7 @@ export function NotificationProvider({ children }) {
     try {
       const [listRes, countRes] = await Promise.allSettled([
         getNotifications(),
-        getUnreadNotificationCount(),
+        getUnreadCount(),
       ])
 
       if (listRes.status === 'fulfilled') {
