@@ -53,14 +53,27 @@ export default function DashboardPage() {
   useEffect(() => {
     async function loadStats() {
       if (!isAuthenticated) {
-        setStats(getGuestStats())
+        const guestData = getGuestStats()
+        setStats({
+          totalTestRuns:   guestData?.totalTestRuns || 0,
+          totalTestCases:  guestData?.totalTestCases || 0,
+          totalBugReports: guestData?.totalBugReports || 0,
+          hoursSaved:      guestData?.hoursSaved || 0,
+          recentActivity:  Array.isArray(guestData?.recentActivity) ? guestData.recentActivity : [],
+        })
         setLoading(false)
         return
       }
       try {
         const res = await getDashboardStats()
-        if (res.stats) {
-          setStats(res.stats)
+        if (res && res.stats) {
+          setStats({
+            totalTestRuns:   res.stats.totalTestRuns || 0,
+            totalTestCases:  res.stats.totalTestCases || 0,
+            totalBugReports: res.stats.totalBugReports || 0,
+            hoursSaved:      res.stats.hoursSaved || 0,
+            recentActivity:  Array.isArray(res.stats.recentActivity) ? res.stats.recentActivity : [],
+          })
         }
       } catch (err) {
         console.error('Failed to load dashboard stats:', err)
@@ -330,7 +343,7 @@ export default function DashboardPage() {
             <p style={{ color: 'var(--color-text-muted)', textAlign: 'center', margin: '2rem 0' }}>
               Loading dashboard data...
             </p>
-          ) : stats.recentActivity.length > 0 ? (
+          ) : (Array.isArray(stats?.recentActivity) && stats.recentActivity.length > 0) ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
               {stats.recentActivity.map((act) => (
                 <div
