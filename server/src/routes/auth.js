@@ -153,4 +153,88 @@ router.get('/dashboard-stats', authenticateToken, async (req, res, next) => {
   }
 })
 
+/**
+ * PUT /api/auth/profile
+ * Protected - Update name, email, date of birth
+ */
+router.put('/profile', authenticateToken, async (req, res, next) => {
+  try {
+    const { name, email, dob } = req.body
+
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ status: 'error', message: 'Full name is required.' })
+    }
+
+    if (!email || typeof email !== 'string' || !EMAIL_REGEX.test(email.trim())) {
+      return res.status(400).json({ status: 'error', message: 'Please provide a valid email address.' })
+    }
+
+    if (!dob || isNaN(Date.parse(dob))) {
+      return res.status(400).json({ status: 'error', message: 'Please provide a valid Date of Birth.' })
+    }
+
+    // Check if new email belongs to another registered user
+    const existingUser = await UserModel.findByEmail(email)
+    if (existingUser && String(existingUser.id || existingUser._id) !== String(req.user.id)) {
+      return res.status(409).json({
+        status:  'error',
+        message: 'An account with this email address already exists. Please choose a different email.',
+      })
+    }
+
+    const updatedUser = await UserModel.updateProfile(req.user.id, { name, email, dob })
+    const formattedUser = UserModel.formatUser(updatedUser)
+
+    return res.json({
+      status:  'ok',
+      message: 'Profile details updated successfully!',
+      user:    formattedUser,
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
+/**
+ * PUT /api/auth/password
+ * Protected - Update account password
+ */
+router.put('/password', authenticateToken, async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword, confirmNewPassword } = req.body
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ status: 'error', message: 'Current password and new password are required.' })
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ status: 'error', message: 'New password must be at least 6 characters long.' })
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      return res.status(400).json({ status: 'error', message: 'New password and confirm password do not match.' })
+    }
+
+    // Fetch full user record (with password field)
+    const user = await UserModel.findById(req.user.id)
+    if (!user) {
+      return res.status(404).json({ status: 'error', message: 'User account not found.' })
+    }
+
+    const isMatch = await user.comparePassword(currentPassword)
+    if (!isMatch) {
+      return res.status(400).json({ status: 'error', message: 'Current password is incorrect.' })
+    }
+
+    await UserModel.updatePassword(req.user.id, newPassword)
+
+    return res.json({
+      status:  'ok',
+      message: 'Password changed successfully!',
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
 module.exports = router

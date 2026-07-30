@@ -176,12 +176,13 @@ export default function Navbar() {
           {isAuthenticated ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <NotificationBell />
-              <Link to="/dashboard" style={{ textDecoration: 'none' }}>
+              <Link to="/profile" title="View & Edit Profile" style={{ textDecoration: 'none' }}>
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: '0.5rem',
                   padding: '0.35rem 0.75rem', borderRadius: '9999px',
                   background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)',
                   color: '#ffffff', fontSize: '0.8rem', fontWeight: 600,
+                  cursor: 'pointer', transition: 'all 0.2s',
                 }}>
                   <div style={{
                     width: 24, height: 24, borderRadius: '50%',

@@ -56,6 +56,16 @@ export async function getCurrentUser() {
   return data
 }
 
+export async function updateUserProfile(payload) {
+  const { data } = await api.put('/auth/profile', payload)
+  return data
+}
+
+export async function updateUserPassword(payload) {
+  const { data } = await api.put('/auth/password', payload)
+  return data
+}
+
 export async function getDashboardStats() {
   const { data } = await api.get('/auth/dashboard-stats')
   return data
@@ -147,6 +157,8 @@ export async function getUnreadCount() {
   const { data } = await api.get('/notifications/unread-count')
   return data
 }
+
+export const getUnreadNotificationCount = getUnreadCount
 
 export async function markNotificationAsRead(id) {
   const { data } = await api.patch(`/notifications/${id}/read`)

@@ -1,5 +1,11 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import { registerUser as apiRegister, loginUser as apiLogin, getCurrentUser } from '../services/api'
+import {
+  registerUser as apiRegister,
+  loginUser as apiLogin,
+  getCurrentUser,
+  updateUserProfile as apiUpdateProfile,
+  updateUserPassword as apiUpdatePassword,
+} from '../services/api'
 
 const AuthContext = createContext(null)
 
@@ -52,6 +58,18 @@ export function AuthProvider({ children }) {
     return data
   }
 
+  const updateProfile = async (formData) => {
+    const data = await apiUpdateProfile(formData)
+    setUser(data.user)
+    localStorage.setItem('ai_qa_user', JSON.stringify(data.user))
+    return data
+  }
+
+  const updatePassword = async (passData) => {
+    const data = await apiUpdatePassword(passData)
+    return data
+  }
+
   const logout = () => {
     setToken(null)
     setUser(null)
@@ -66,6 +84,8 @@ export function AuthProvider({ children }) {
     isAuthenticated: !!token && !!user,
     register,
     login,
+    updateProfile,
+    updatePassword,
     logout,
   }
 
