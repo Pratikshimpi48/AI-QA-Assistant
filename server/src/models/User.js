@@ -144,6 +144,66 @@ class UserModel {
     return mongoUser || memUser
   }
 
+  static async updateProfile(userId, { name, email, dob }) {
+    const sId = String(userId)
+    const cleanEmail = email.toLowerCase().trim()
+    let mongoUpdated = null
+
+    if (getIsMongoConnected()) {
+      try {
+        mongoUpdated = await MongoUser.findByIdAndUpdate(
+          userId,
+          { name: name.trim(), email: cleanEmail, dob: new Date(dob) },
+          { new: true }
+        )
+      } catch (err) {
+        console.warn('[UserModel] Mongo updateProfile error:', err.message)
+      }
+    }
+
+    const idx = memoryStore.users.findIndex(u => u.id === sId || String(u._id) === sId)
+    if (idx !== -1) {
+      memoryStore.users[idx] = {
+        ...memoryStore.users[idx],
+        name: name.trim(),
+        email: cleanEmail,
+        dob: new Date(dob).toISOString(),
+      }
+      saveDiskStore()
+    }
+
+    const updatedUser = mongoUpdated || (idx !== -1 ? memoryStore.users[idx] : null)
+    return this.attachComparePassword(updatedUser)
+  }
+
+  static async updatePassword(userId, newPassword) {
+    const sId = String(userId)
+    const salt = await bcrypt.genSalt(10)
+    const hashedPassword = await bcrypt.hash(newPassword, salt)
+    let mongoUpdated = null
+
+    if (getIsMongoConnected()) {
+      try {
+        mongoUpdated = await MongoUser.findByIdAndUpdate(
+          userId,
+          { password: hashedPassword },
+          { new: true }
+        )
+      } catch (err) {
+        console.warn('[UserModel] Mongo updatePassword error:', err.message)
+      }
+    }
+
+    const idx = memoryStore.users.findIndex(u => u.id === sId || String(u._id) === sId)
+    if (idx !== -1) {
+      memoryStore.users[idx].password = hashedPassword
+      saveDiskStore()
+    }
+
+    const updatedUser = mongoUpdated || (idx !== -1 ? memoryStore.users[idx] : null)
+    return this.attachComparePassword(updatedUser)
+  }
+
   static formatUser(user) {
     if (!user) return null
     return {

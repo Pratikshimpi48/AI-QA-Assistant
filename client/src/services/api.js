@@ -56,6 +56,16 @@ export async function getCurrentUser() {
   return data
 }
 
+export async function updateUserProfile(payload) {
+  const { data } = await api.put('/auth/profile', payload)
+  return data
+}
+
+export async function updateUserPassword(payload) {
+  const { data } = await api.put('/auth/password', payload)
+  return data
+}
+
 export async function getDashboardStats() {
   const { data } = await api.get('/auth/dashboard-stats')
   return data
