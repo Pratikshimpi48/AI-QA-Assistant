@@ -16,37 +16,46 @@ function timeAgo(dateStr) {
 }
 
 const STATUS_STYLES = {
-  'Ready for QA': { bg: 'rgba(34,197,94,0.15)',  border: 'rgba(34,197,94,0.4)',  text: '#4ade80' },
-  'In QA':        { bg: 'rgba(34,197,94,0.15)',  border: 'rgba(34,197,94,0.4)',  text: '#4ade80' },
-  'Done':         { bg: 'rgba(99,102,241,0.15)', border: 'rgba(99,102,241,0.3)', text: '#818cf8' },
-  'Resolved':     { bg: 'rgba(99,102,241,0.15)', border: 'rgba(99,102,241,0.3)', text: '#818cf8' },
-  'Merged':       { bg: 'rgba(99,102,241,0.15)', border: 'rgba(99,102,241,0.3)', text: '#818cf8' },
-  'In Progress':  { bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.4)', text: '#fbbf24' },
-  'Open':         { bg: 'rgba(100,116,139,0.15)',border: 'rgba(100,116,139,0.3)',text: '#64748b' },
-  'Unknown':      { bg: 'rgba(100,116,139,0.1)', border: 'rgba(100,116,139,0.2)',text: '#475569' },
+  'Ready for QA': { bg: 'rgba(34,197,94,0.15)',   border: 'rgba(34,197,94,0.4)',   text: '#4ade80' },
+  'In QA':        { bg: 'rgba(34,197,94,0.15)',   border: 'rgba(34,197,94,0.4)',   text: '#4ade80' },
+  'Done':         { bg: 'rgba(99,102,241,0.15)',  border: 'rgba(99,102,241,0.3)',  text: '#818cf8' },
+  'Resolved':     { bg: 'rgba(99,102,241,0.15)',  border: 'rgba(99,102,241,0.3)',  text: '#818cf8' },
+  'Merged':       { bg: 'rgba(99,102,241,0.15)',  border: 'rgba(99,102,241,0.3)',  text: '#818cf8' },
+  'In Progress':  { bg: 'rgba(245,158,11,0.15)',  border: 'rgba(245,158,11,0.4)',  text: '#fbbf24' },
+  'Open':         { bg: 'rgba(100,116,139,0.15)', border: 'rgba(100,116,139,0.3)', text: '#64748b' },
+  'Unknown':      { bg: 'rgba(100,116,139,0.1)',  border: 'rgba(100,116,139,0.2)', text: '#475569' },
 }
 
 function getStatusStyle(status) {
   return STATUS_STYLES[status] || STATUS_STYLES['Unknown']
 }
 
+/** Client-side Jira ticket ID format check */
+function isValidFormat(id) {
+  return /^[A-Za-z][A-Za-z0-9]+-\d+$/.test((id || '').trim())
+}
+
 export default function JiraWatchlistPage() {
   const { isAuthenticated, loading: authLoading } = useAuth()
   const navigate = useNavigate()
 
-  const [watchlist, setWatchlist]         = useState([])
-  const [jiraConfig, setJiraConfig]       = useState(null)
-  const [pageLoading, setPageLoading]     = useState(true)
-  const [ticketInput, setTicketInput]     = useState('')
-  const [adding, setAdding]               = useState(false)
-  const [addError, setAddError]           = useState('')
-  const [addSuccess, setAddSuccess]       = useState('')
-  const [removing, setRemoving]           = useState(null)
+  const [watchlist, setWatchlist]   = useState([])
+  const [jiraConfig, setJiraConfig] = useState(null)
+  const [pageLoading, setPageLoading] = useState(true)
+
+  // Add ticket form state
+  const [ticketInput, setTicketInput] = useState('')
+  const [adding, setAdding]           = useState(false)
+  const [addError, setAddError]       = useState('')
+  const [addSuccess, setAddSuccess]   = useState('')
+
+  // Remove state
+  const [removing, setRemoving] = useState(null)
 
   const loadData = useCallback(async () => {
     try {
       const [wlRes, cfgRes] = await Promise.allSettled([getWatchlist(), getJiraConfig()])
-      if (wlRes.status === 'fulfilled')  setWatchlist(wlRes.value.watchlist || [])
+      if (wlRes.status  === 'fulfilled') setWatchlist(wlRes.value.watchlist || [])
       if (cfgRes.status === 'fulfilled') setJiraConfig(cfgRes.value.config)
     } catch { /* handled by allSettled */ }
     finally { setPageLoading(false) }
@@ -57,18 +66,34 @@ export default function JiraWatchlistPage() {
     if (!authLoading) loadData()
   }, [isAuthenticated, authLoading, loadData, navigate])
 
+  /**
+   * Validate format client-side, then call backend which validates against live Jira.
+   * Backend returns specific error messages for: not found, auth error, duplicate, bad format.
+   */
   const handleAdd = async (e) => {
     e.preventDefault()
     const ticket = ticketInput.trim().toUpperCase()
     if (!ticket) return
-    setAddError(''); setAddSuccess(''); setAdding(true)
+
+    // Step 1: client-side format check (instant, no API call)
+    if (!isValidFormat(ticket)) {
+      setAddError(`"${ticket}" is not a valid Jira ticket ID. Use the format PROJECT-123 (e.g. QA-145, BUG-32).`)
+      return
+    }
+
+    setAddError('')
+    setAddSuccess('')
+    setAdding(true)
+
     try {
+      // Step 2: backend validates against live Jira — returns clear error if ticket doesn't exist
       const res = await addToWatchlist({ jiraTicketId: ticket })
       setWatchlist(prev => [res.item, ...prev])
       setTicketInput('')
-      setAddSuccess(`✅ ${ticket} added to watchlist!`)
-      setTimeout(() => setAddSuccess(''), 3000)
+      setAddSuccess(`✅ ${ticket} verified & added! Current status: "${res.item?.currentStatus || 'Unknown'}"`)
+      setTimeout(() => setAddSuccess(''), 5000)
     } catch (err) {
+      // Backend returns specific messages — display them directly
       setAddError(err.message)
     } finally {
       setAdding(false)
@@ -76,7 +101,7 @@ export default function JiraWatchlistPage() {
   }
 
   const handleRemove = async (id, ticketId) => {
-    if (!window.confirm(`Remove ${ticketId} from watchlist?`)) return
+    if (!window.confirm(`Remove ${ticketId} from your watchlist?`)) return
     setRemoving(id)
     try {
       await removeFromWatchlist(id)
@@ -103,12 +128,18 @@ export default function JiraWatchlistPage() {
     )
   }
 
+  const inputBorderColor = addError
+    ? 'rgba(239,68,68,0.5)'
+    : addSuccess
+      ? 'rgba(34,197,94,0.4)'
+      : 'rgba(255,255,255,0.1)'
+
   return (
     <div style={{ background: 'var(--color-bg)', minHeight: '100vh' }}>
       <Navbar />
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '8rem 1.5rem 4rem' }}>
 
-        {/* Header */}
+        {/* Page Header */}
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
           padding: '0.375rem 1rem', borderRadius: '9999px',
@@ -121,10 +152,12 @@ export default function JiraWatchlistPage() {
           Jira MR Watchlist
         </h1>
         <p style={{ fontSize: '1rem', color: 'var(--color-text-muted)', lineHeight: 1.7, marginBottom: '2rem' }}>
-          Add Jira ticket IDs to monitor. You'll receive a notification in your <strong style={{ color: '#818cf8' }}>Notification Center</strong> as soon as the ticket status changes to <em>Ready for QA</em> or <em>Done</em>.
+          Add Jira ticket IDs to monitor. You'll receive a notification in your{' '}
+          <strong style={{ color: '#818cf8' }}>Notification Center</strong> as soon as the ticket status
+          changes to <em>Ready for QA</em> or <em>Done</em>. Only valid, existing tickets from your Jira board can be added.
         </p>
 
-        {/* Jira not configured warning */}
+        {/* Jira not connected warning */}
         {!jiraConfig?.connected && (
           <div style={{
             marginBottom: '2rem', padding: '1rem 1.25rem', borderRadius: '0.875rem',
@@ -135,7 +168,9 @@ export default function JiraWatchlistPage() {
               <span style={{ fontSize: '1.25rem' }}>⚠️</span>
               <div>
                 <p style={{ margin: 0, fontWeight: 600, color: '#fbbf24', fontSize: '0.9rem' }}>Jira not connected</p>
-                <p style={{ margin: '0.1rem 0 0', color: '#78716c', fontSize: '0.8rem' }}>Connect your Jira account in Settings to add tickets to the watchlist.</p>
+                <p style={{ margin: '0.1rem 0 0', color: '#78716c', fontSize: '0.8rem' }}>
+                  Connect your Jira account in Settings before adding tickets to the watchlist.
+                </p>
               </div>
             </div>
             <button
@@ -158,47 +193,98 @@ export default function JiraWatchlistPage() {
             background: 'var(--color-surface)', border: '1px solid var(--color-border)',
             borderRadius: '1rem',
           }}>
-            <h3 style={{ margin: '0 0 1rem', fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-text)' }}>
+            <h3 style={{ margin: '0 0 0.4rem', fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-text)' }}>
               ➕ Add Ticket to Watchlist
             </h3>
-            <form onSubmit={handleAdd} style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <input
-                id="watchlist-ticket-input"
-                type="text"
-                placeholder="e.g. QA-145, PROJ-232"
-                value={ticketInput}
-                onChange={e => setTicketInput(e.target.value)}
-                required
-                style={{
-                  flex: 1, minWidth: 180,
-                  padding: '0.7rem 1rem', borderRadius: '0.5rem',
-                  background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)',
-                  color: '#f1f5f9', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box',
-                }}
-              />
-              <button
-                id="watchlist-add-btn"
-                type="submit"
-                disabled={adding || !ticketInput.trim()}
-                style={{
-                  padding: '0.7rem 1.5rem', borderRadius: '0.5rem', fontSize: '0.875rem', fontWeight: 700,
-                  background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-                  color: '#fff', border: 'none',
-                  cursor: (adding || !ticketInput.trim()) ? 'not-allowed' : 'pointer',
-                  opacity: (adding || !ticketInput.trim()) ? 0.6 : 1,
-                  boxShadow: '0 4px 14px rgba(99,102,241,0.35)',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {adding ? '⏳ Adding...' : '🎫 Add Ticket'}
-              </button>
+            <p style={{ margin: '0 0 1rem', fontSize: '0.78rem', color: '#475569' }}>
+              Enter a valid Jira ticket ID. The system will verify it exists in your Jira board before adding.
+            </p>
+
+            <form onSubmit={handleAdd}>
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 180, position: 'relative' }}>
+                  <input
+                    id="watchlist-ticket-input"
+                    type="text"
+                    placeholder="e.g. QA-145 or PROJ-232"
+                    value={ticketInput}
+                    onChange={e => {
+                      setTicketInput(e.target.value)
+                      // Clear error as user types
+                      if (addError) setAddError('')
+                    }}
+                    disabled={adding}
+                    style={{
+                      width: '100%', padding: '0.75rem 1rem', borderRadius: '0.5rem',
+                      background: 'rgba(0,0,0,0.3)',
+                      border: `1px solid ${inputBorderColor}`,
+                      color: '#f1f5f9', fontSize: '0.9rem', outline: 'none',
+                      boxSizing: 'border-box', transition: 'border-color 0.2s',
+                      textTransform: 'uppercase',
+                    }}
+                  />
+                </div>
+                <button
+                  id="watchlist-add-btn"
+                  type="submit"
+                  disabled={adding || !ticketInput.trim()}
+                  style={{
+                    padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontSize: '0.875rem', fontWeight: 700,
+                    background: adding ? 'rgba(99,102,241,0.5)' : 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                    color: '#fff', border: 'none',
+                    cursor: (adding || !ticketInput.trim()) ? 'not-allowed' : 'pointer',
+                    opacity: (adding || !ticketInput.trim()) ? 0.65 : 1,
+                    boxShadow: '0 4px 14px rgba(99,102,241,0.35)',
+                    display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap',
+                  }}
+                >
+                  {adding ? (
+                    <>
+                      <svg style={{ animation: 'spin-slow 0.8s linear infinite' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                        <path d="M12 2a10 10 0 0 1 10 10" />
+                      </svg>
+                      Verifying in Jira...
+                    </>
+                  ) : (
+                    '🔍 Verify & Add'
+                  )}
+                </button>
+              </div>
+
+              {/* Error Message */}
+              {addError && (
+                <div style={{
+                  marginTop: '0.75rem', padding: '0.65rem 1rem', borderRadius: '0.5rem',
+                  background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
+                  display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+                }}>
+                  <span style={{ fontSize: '0.9rem', flexShrink: 0 }}>❌</span>
+                  <p style={{ margin: 0, color: '#f87171', fontSize: '0.82rem', lineHeight: 1.5 }}>{addError}</p>
+                </div>
+              )}
+
+              {/* Success Message */}
+              {addSuccess && (
+                <div style={{
+                  marginTop: '0.75rem', padding: '0.65rem 1rem', borderRadius: '0.5rem',
+                  background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)',
+                  display: 'flex', alignItems: 'center', gap: '0.5rem',
+                }}>
+                  <p style={{ margin: 0, color: '#4ade80', fontSize: '0.82rem', fontWeight: 500 }}>{addSuccess}</p>
+                </div>
+              )}
             </form>
-            {addError && (
-              <p style={{ margin: '0.625rem 0 0', color: '#f87171', fontSize: '0.8rem' }}>❌ {addError}</p>
-            )}
-            {addSuccess && (
-              <p style={{ margin: '0.625rem 0 0', color: '#4ade80', fontSize: '0.8rem' }}>{addSuccess}</p>
-            )}
+
+            {/* Format hint */}
+            <div style={{ marginTop: '0.875rem', display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+              <p style={{ margin: 0, fontSize: '0.72rem', color: '#334155' }}>
+                ✓ Valid formats: <code style={{ color: '#6366f1' }}>QA-145</code>, <code style={{ color: '#6366f1' }}>PROJ-1000</code>, <code style={{ color: '#6366f1' }}>BUG-32</code>
+              </p>
+              <p style={{ margin: 0, fontSize: '0.72rem', color: '#334155' }}>
+                Jira server: <span style={{ color: '#475569' }}>{jiraConfig.jiraBaseUrl}</span>
+              </p>
+            </div>
           </div>
         )}
 
@@ -209,7 +295,9 @@ export default function JiraWatchlistPage() {
             background: 'var(--color-surface)', border: '1px solid var(--color-border)',
           }}>
             <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>🎫</div>
-            <h3 style={{ color: '#64748b', fontSize: '1.05rem', fontWeight: 600, margin: '0 0 0.4rem' }}>No tickets being watched</h3>
+            <h3 style={{ color: '#64748b', fontSize: '1.05rem', fontWeight: 600, margin: '0 0 0.4rem' }}>
+              No tickets being watched
+            </h3>
             <p style={{ color: '#334155', fontSize: '0.85rem', margin: 0 }}>
               Add a Jira ticket ID above to start monitoring its MR status.
             </p>
@@ -221,11 +309,12 @@ export default function JiraWatchlistPage() {
           }}>
             {/* Table Header */}
             <div style={{
-              display: 'grid', gridTemplateColumns: '120px 1fr 150px 110px 80px',
+              display: 'grid', gridTemplateColumns: '120px 1fr 160px 110px 80px',
               padding: '0.75rem 1.25rem',
               background: 'rgba(255,255,255,0.02)',
               borderBottom: '1px solid rgba(255,255,255,0.06)',
-              fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em',
+              fontSize: '0.7rem', fontWeight: 700, color: '#475569',
+              textTransform: 'uppercase', letterSpacing: '0.07em',
             }}>
               <span>Ticket ID</span>
               <span>Summary</span>
@@ -242,10 +331,9 @@ export default function JiraWatchlistPage() {
                 <div
                   key={id}
                   style={{
-                    display: 'grid', gridTemplateColumns: '120px 1fr 150px 110px 80px',
+                    display: 'grid', gridTemplateColumns: '120px 1fr 160px 110px 80px',
                     padding: '1rem 1.25rem', alignItems: 'center', gap: '0.5rem',
                     borderBottom: idx < watchlist.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
-                    transition: 'background 0.15s',
                   }}
                 >
                   <div>
@@ -257,7 +345,10 @@ export default function JiraWatchlistPage() {
                       {item.jiraTicketId}
                     </a>
                   </div>
-                  <div style={{ fontSize: '0.82rem', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{
+                    fontSize: '0.82rem', color: '#94a3b8',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
                     {item.summary || '—'}
                   </div>
                   <div>
@@ -293,7 +384,8 @@ export default function JiraWatchlistPage() {
         )}
 
         <p style={{ marginTop: '1.25rem', fontSize: '0.75rem', color: '#334155', lineHeight: 1.6 }}>
-          🔄 The system automatically polls Jira every <strong style={{ color: '#475569' }}>5 minutes</strong>. Notifications are sent when ticket status changes to <em>Ready for QA, Done, Resolved</em> or <em>Merged</em>.
+          🔄 The system polls Jira every <strong style={{ color: '#475569' }}>5 minutes</strong>.
+          Notifications are sent when status changes to <em>Ready for QA, Done, Resolved</em> or <em>Merged</em>.
         </p>
       </div>
     </div>

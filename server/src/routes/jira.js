@@ -81,8 +81,18 @@ router.get('/watchlist', authenticateToken, async (req, res, next) => {
 router.post('/watchlist', authenticateToken, async (req, res, next) => {
   try {
     const { jiraTicketId } = req.body
-    if (!jiraTicketId || !jiraTicketId.trim()) {
-      return res.status(400).json({ status: 'error', message: 'jiraTicketId is required (e.g. QA-145).' })
+    const ticketId = (jiraTicketId || '').trim().toUpperCase()
+
+    if (!ticketId) {
+      return res.status(400).json({ status: 'error', message: 'Jira ticket ID is required (e.g. QA-145).' })
+    }
+
+    // Basic format check — must be letters-digits (e.g. QA-145, PROJ-1000)
+    if (!/^[A-Z][A-Z0-9]+-\d+$/.test(ticketId)) {
+      return res.status(400).json({
+        status:  'error',
+        message: `"${ticketId}" is not a valid Jira ticket ID format. Expected format: PROJECT-123 (e.g. QA-145, BUG-32).`,
+      })
     }
 
     // Get user's Jira config
@@ -91,27 +101,66 @@ router.post('/watchlist', authenticateToken, async (req, res, next) => {
       return res.status(503).json({ status: 'error', message: 'Jira is not configured. Please connect Jira in Settings first.' })
     }
 
-    // Fetch initial status from Jira
+    // Check if ticket already in watchlist
+    const existingWatchlist = await JiraWatchlistModel.findByUserId(req.user.id)
+    const alreadyWatching   = existingWatchlist.find(w => w.jiraTicketId === ticketId && !w.notified)
+    if (alreadyWatching) {
+      return res.status(409).json({
+        status:  'error',
+        message: `Ticket ${ticketId} is already in your watchlist.`,
+      })
+    }
+
+    // Validate ticket exists in Jira — clear errors for each failure mode
     let summary = ''
     let currentStatus = 'Unknown'
     try {
-      const issue   = await fetchJiraIssue(config.jiraBaseUrl, jiraTicketId.trim().toUpperCase(), config.jiraEmail, config.jiraApiToken)
+      const issue   = await fetchJiraIssue(config.jiraBaseUrl, ticketId, config.jiraEmail, config.jiraApiToken)
       currentStatus = getIssueStatus(issue)
       summary       = getIssueSummary(issue)
     } catch (jiraErr) {
-      return res.status(400).json({ status: 'error', message: `Ticket not found or Jira error: ${jiraErr.message}` })
+      const httpStatus = jiraErr.response?.status
+
+      if (httpStatus === 404) {
+        return res.status(404).json({
+          status:  'error',
+          message: `Ticket "${ticketId}" was not found in your Jira board. Please check the ticket ID and try again.`,
+        })
+      }
+      if (httpStatus === 401 || httpStatus === 403) {
+        return res.status(400).json({
+          status:  'error',
+          message: `Access denied to Jira ticket "${ticketId}". Your Jira credentials may be incorrect or you may not have permission to view this ticket.`,
+        })
+      }
+      if (jiraErr.code === 'ECONNREFUSED' || jiraErr.code === 'ENOTFOUND') {
+        return res.status(400).json({
+          status:  'error',
+          message: `Cannot reach your Jira server at "${config.jiraBaseUrl}". Please check your Jira URL in Settings.`,
+        })
+      }
+      // Generic fallback
+      return res.status(400).json({
+        status:  'error',
+        message: `Could not verify ticket "${ticketId}" in Jira: ${jiraErr.response?.data?.errorMessages?.[0] || jiraErr.message}`,
+      })
     }
 
     const item = await JiraWatchlistModel.create({
       userId:       req.user.id,
-      jiraTicketId: jiraTicketId.trim().toUpperCase(),
+      jiraTicketId: ticketId,
       jiraBaseUrl:  config.jiraBaseUrl,
       summary,
       currentStatus,
     })
-    return res.status(201).json({ status: 'ok', item, message: `${jiraTicketId.toUpperCase()} added to watchlist.` })
+    return res.status(201).json({
+      status:  'ok',
+      item,
+      message: `${ticketId} added to watchlist.`,
+    })
   } catch (err) { next(err) }
 })
+
 
 /**
  * DELETE /api/jira/watchlist/:id — remove from watchlist
