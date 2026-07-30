@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react'
+import { Routes, Route } from 'react-router-dom'
 import './App.css'
 import { AuthProvider }         from './context/AuthContext'
 import { NotificationProvider } from './context/NotificationContext'
