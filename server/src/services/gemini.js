@@ -36,7 +36,7 @@ async function generateWithGemini(requirements, fileName = null) {
     systemInstruction: systemPrompt,
     generationConfig: {
       temperature: 0.4,   // lower = more structured, consistent output
-      maxOutputTokens: 4096,
+      maxOutputTokens: 8192,
       responseMimeType: 'application/json',  // tells Gemini to output raw JSON
     },
   })
