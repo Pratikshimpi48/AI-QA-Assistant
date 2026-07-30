@@ -14,13 +14,13 @@ function getClient() {
   return _client
 }
 
+const GEMINI_MODELS = [
+  'gemini-flash-latest',
+  'gemini-2.0-flash',
+]
+
 /**
- * Generate test cases using Google Gemini 2.0 Flash (free tier).
- *
- * Free tier limits (Google AI Studio):
- *   - 15 RPM  (requests per minute)
- *   - 1M TPM  (tokens per minute)
- *   - 1500 RPD (requests per day)
+ * Generate test cases using Google Gemini API.
  *
  * @param {string} requirements
  * @param {string|null} fileName
@@ -30,39 +30,50 @@ async function generateWithGemini(requirements, fileName = null) {
   const genAI = getClient()
   const { systemPrompt, userMessage } = buildPrompt(requirements, fileName)
 
-  // gemini-2.0-flash is the recommended free-tier model (fast + capable)
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
-    systemInstruction: systemPrompt,
-    generationConfig: {
-      temperature:     0.4,   // lower = more structured, consistent output
-      maxOutputTokens: 4096,
-      responseMimeType: 'application/json',  // tells Gemini to output raw JSON
-    },
-  })
+  let lastError = null
 
-  try {
-    const result = await model.generateContent(userMessage)
-    const text   = result.response.text()
-    const testCases = parseResponse(text)
+  for (const modelName of GEMINI_MODELS) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        systemInstruction: systemPrompt,
+        generationConfig: {
+          temperature:     0.4,
+          maxOutputTokens: 4096,
+          responseMimeType: 'application/json',
+        },
+      })
 
-    if (testCases.length === 0) {
-      throw new Error('Gemini returned an empty or unparseable response. Please try again.')
-    }
+      const result = await model.generateContent(userMessage)
+      const text   = result.response.text()
+      const testCases = parseResponse(text)
 
-    return {
-      testCases,
-      model:    'gemini-2.0-flash',
-      provider: 'Google Gemini',
+      if (testCases.length === 0) {
+        throw new Error('Gemini returned an empty or unparseable response. Please try again.')
+      }
+
+      return {
+        testCases,
+        model:    modelName,
+        provider: 'Google Gemini',
+      }
+    } catch (err) {
+      lastError = err
+      const is429 = err.message?.includes('429') || err.message?.includes('Quota exceeded') || err.status === 429
+      if (is429) {
+        console.warn(`[Gemini] Model ${modelName} hit 429 quota limit. Retrying with fallback model...`)
+        continue
+      }
+      if (err.message?.includes('API_KEY_SERVICE_BLOCKED')) {
+        throw new Error(
+          'Gemini API Service is blocked for this project. Enable "Generative Language API" in Google Cloud Console, or use the Groq provider.'
+        )
+      }
+      throw err
     }
-  } catch (err) {
-    if (err.message?.includes('API_KEY_SERVICE_BLOCKED')) {
-      throw new Error(
-        'Gemini API Service is blocked for this project. Enable "Generative Language API" in Google Cloud Console, or use the Groq provider.'
-      )
-    }
-    throw err
   }
+
+  throw lastError || new Error('Gemini API call failed.')
 }
 
 module.exports = { generateWithGemini }
