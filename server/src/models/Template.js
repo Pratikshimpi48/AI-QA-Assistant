@@ -27,6 +27,10 @@ const templateSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed,
     required: true,
   },
+  samplePreview: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null,
+  },
   createdBy: {
     type: String,
     default: 'System',
@@ -43,7 +47,7 @@ const templateSchema = new mongoose.Schema({
 
 const MongoTemplate = mongoose.model('Template', templateSchema)
 
-// Preset default templates
+// Rich Industry Standard Free Preset Templates
 const PRESET_TEMPLATES = [
   {
     id: 'tmpl_std_tc',
@@ -58,20 +62,68 @@ const PRESET_TEMPLATES = [
       fields: ['id', 'title', 'type', 'priority', 'steps', 'expected', 'tags'],
       format: 'Standard JSON array of test cases',
     },
+    samplePreview: [
+      {
+        id: 'TC-001',
+        title: 'User login with valid registered email and password',
+        type: 'Positive',
+        priority: 'High',
+        steps: ['Navigate to /login', 'Enter user@example.com into Email field', 'Enter valid password', 'Click "Log In" button'],
+        expected: 'User is authenticated and redirected to Dashboard page with active session token.',
+        tags: ['auth', 'login', 'smoke'],
+      },
+    ],
   },
   {
-    id: 'tmpl_iso_tc',
-    name: 'ISO/IEC 29119 Formal Specification',
+    id: 'tmpl_ieee829_tc',
+    name: 'IEEE 829 Standard Test Case Specification',
     type: 'test-cases',
     category: 'preset',
-    description: 'ISO/IEEE compliant test specification layout with environmental needs, pre-conditions, input data, and pass/fail criteria.',
+    description: 'Formal IEEE 829 software test documentation format detailing test items, environmental needs, input data, and dependencies.',
     isDefault: false,
-    createdBy: 'System',
+    createdBy: 'IEEE / ISO Standard',
     createdAt: new Date().toISOString(),
     structure: {
-      fields: ['id', 'title', 'type', 'priority', 'preconditions', 'steps', 'expected', 'passCriteria', 'tags'],
-      format: 'ISO/IEC 29119 formal testing standard',
+      fields: ['testCaseId', 'testItem', 'summary', 'environmentalNeeds', 'inputData', 'executionSteps', 'expectedOutputs', 'intercaseDependencies'],
+      format: 'IEEE 829 Standard Test Specification',
     },
+    samplePreview: [
+      {
+        testCaseId: 'IEEE-TC-104',
+        testItem: 'JWT Authentication Module v2.1',
+        summary: 'Verify token expiration and auto-logout mechanism',
+        environmentalNeeds: 'Staging Environment, Chrome 124, Isolated Auth Microservice',
+        inputData: 'Expired JWT Token bearer string',
+        executionSteps: ['Attach expired token to Authorization header', 'Send GET request to /api/user/profile'],
+        expectedOutputs: 'HTTP status 401 Unauthorized returned with error payload {"message": "Token expired"}.',
+        intercaseDependencies: 'Requires completed user registration IEEE-TC-101',
+      },
+    ],
+  },
+  {
+    id: 'tmpl_owasp_tc',
+    name: 'OWASP Security & Penetration Audit Suite',
+    type: 'test-cases',
+    category: 'preset',
+    description: 'Security testing template aligned with OWASP Top 10 vulnerabilities (SQLi, XSS, CSRF, Broken Access Control).',
+    isDefault: false,
+    createdBy: 'OWASP Foundation',
+    createdAt: new Date().toISOString(),
+    structure: {
+      fields: ['vulnerabilityId', 'owaspCategory', 'severity', 'attackVector', 'preconditions', 'stepsToTrigger', 'remediationCriteria'],
+      format: 'OWASP Security Audit Test Format',
+    },
+    samplePreview: [
+      {
+        vulnerabilityId: 'SEC-OWASP-01',
+        owaspCategory: 'A03:2021-Injection (XSS)',
+        severity: 'Critical',
+        attackVector: 'Reflected Cross-Site Scripting via search input payload',
+        preconditions: 'Unauthenticated access to public search endpoint',
+        stepsToTrigger: ['Paste `<script>alert(document.cookie)</script>` into search bar', 'Submit form'],
+        remediationCriteria: 'Search input must sanitize HTML entities and return sanitized output without executing scripts.',
+      },
+    ],
   },
   {
     id: 'tmpl_bdd_tc',
@@ -80,12 +132,23 @@ const PRESET_TEMPLATES = [
     category: 'preset',
     description: 'Behavior-Driven Development (BDD) scenario layout using Given-When-Then acceptance criteria format.',
     isDefault: false,
-    createdBy: 'System',
+    createdBy: 'Agile Alliance',
     createdAt: new Date().toISOString(),
     structure: {
-      fields: ['id', 'title', 'type', 'priority', 'given', 'when', 'then', 'tags'],
+      fields: ['id', 'scenarioTitle', 'priority', 'given', 'when', 'then', 'tags'],
       format: 'BDD Scenario format',
     },
+    samplePreview: [
+      {
+        id: 'BDD-SC-05',
+        scenarioTitle: 'Password reset link generation for forgotten passwords',
+        priority: 'High',
+        given: 'Given an existing user on the Forgot Password page',
+        when: 'When they enter their valid registered email and click "Reset Password"',
+        then: 'Then a secure password reset token link is dispatched to their email inbox within 30 seconds.',
+        tags: ['bdd', 'auth', 'user-story-42'],
+      },
+    ],
   },
   {
     id: 'tmpl_std_bug',
@@ -99,6 +162,51 @@ const PRESET_TEMPLATES = [
     structure: {
       fields: ['title', 'severity', 'type', 'environment', 'summary', 'stepsToReproduce', 'expectedBehavior', 'actualBehavior', 'workaround', 'tags'],
       format: 'Standard Bug Report JSON object',
+    },
+    samplePreview: {
+      title: 'Checkout button remains disabled after entering valid payment information',
+      severity: 'High',
+      type: 'Bug',
+      environment: 'Production / Chrome 124 / macOS Sonoma',
+      summary: 'Users cannot complete purchase because the final "Place Order" button does not enable after filling out valid credit card details.',
+      stepsToReproduce: [
+        'Add items to cart and proceed to Checkout page',
+        'Enter valid shipping address and select Express Shipping',
+        'Input valid test credit card number and CVV',
+      ],
+      expectedBehavior: 'Place Order button turns active and clickable.',
+      actualBehavior: 'Button remains disabled with opacity 0.5 and cursor not-allowed.',
+      workaround: 'Refreshing the page enables the button.',
+      tags: ['checkout', 'payment', 'frontend'],
+    },
+  },
+  {
+    id: 'tmpl_mozilla_bug',
+    name: 'Mozilla Bugzilla Defect & Crash Report',
+    type: 'bug-report',
+    category: 'preset',
+    description: 'Detailed open-source defect format modeled after Mozilla Bugzilla, including Component, Hardware, Stack Trace, and Build ID.',
+    isDefault: false,
+    createdBy: 'Mozilla Bugzilla Standard',
+    createdAt: new Date().toISOString(),
+    structure: {
+      fields: ['title', 'component', 'severity', 'hardwareConfig', 'buildId', 'summary', 'stepsToReproduce', 'stackTraceLog', 'expectedBehavior', 'actualBehavior'],
+      format: 'Mozilla Defect Report Object',
+    },
+    samplePreview: {
+      title: 'Uncaught TypeError: Cannot read property "amount" of undefined during checkout API call',
+      component: 'API Server / Payment Gateway',
+      severity: 'Critical',
+      hardwareConfig: 'Node v20.11 / Linux x86_64',
+      buildId: 'v2.4.12-build-894',
+      summary: 'Server crashes with 500 status code when payment amount payload is processed without currency code.',
+      stepsToReproduce: [
+        'Send POST request to /api/checkout with payload missing currency field',
+        'Inspect server console output logs',
+      ],
+      stackTraceLog: 'TypeError: Cannot read property "amount" of undefined\n  at processPayment (payment.js:42:18)\n  at Layer.handle [as handle_request] (express/router/layer.js:95)',
+      expectedBehavior: 'API returns HTTP status 400 Bad Request with validation payload error message.',
+      actualBehavior: 'Unhandled 500 exception crashes process loop.',
     },
   },
   {
@@ -114,6 +222,22 @@ const PRESET_TEMPLATES = [
       fields: ['title', 'severity', 'type', 'businessImpact', 'affectedScope', 'summary', 'stepsToReproduce', 'expectedBehavior', 'actualBehavior', 'recommendedFix', 'tags'],
       format: 'Executive Incident Report JSON object',
     },
+    samplePreview: {
+      title: 'Intermittent 502 Bad Gateway response on user authentication service',
+      severity: 'Critical',
+      type: 'Incident',
+      businessImpact: 'Est. $12,000 lost revenue per hour due to customer login blockages.',
+      affectedScope: '~18% of active mobile application users during peak traffic hours',
+      summary: 'Auth microservice pod memory leak causes proxy timeout on ingress gateway.',
+      stepsToReproduce: [
+        'Simulate 1,500 concurrent authentication requests',
+        'Monitor proxy response times',
+      ],
+      expectedBehavior: 'Response times remain below 200ms without HTTP 502 errors.',
+      actualBehavior: 'Gateway times out after 10s and returns 502 Bad Gateway.',
+      recommendedFix: 'Increase pod memory limits to 2GB and restart connection pool workers.',
+      tags: ['executive', 'incident', 'auth'],
+    },
   },
 ]
 
@@ -122,10 +246,12 @@ class TemplateModel {
     if (!memoryStore.templates) {
       memoryStore.templates = []
     }
-    // Ensure all presets exist in memoryStore
+    // Update or insert presets in memoryStore
     PRESET_TEMPLATES.forEach(preset => {
-      const exists = memoryStore.templates.some(t => t.id === preset.id || t.name === preset.name)
-      if (!exists) {
+      const idx = memoryStore.templates.findIndex(t => t.id === preset.id || t.name === preset.name)
+      if (idx !== -1) {
+        memoryStore.templates[idx] = { ...memoryStore.templates[idx], ...preset }
+      } else {
         memoryStore.templates.push(preset)
       }
     })
@@ -145,7 +271,6 @@ class TemplateModel {
       }
     }
 
-    // Merge memoryStore custom templates & presets
     const memItems = (memoryStore.templates || []).filter(t => !type || t.type === type)
     const combined = [...items]
 
@@ -175,7 +300,7 @@ class TemplateModel {
     return this.formatTemplate(tmpl)
   }
 
-  static async create({ name, type, description, structure, createdBy }) {
+  static async create({ name, type, description, structure, samplePreview, createdBy }) {
     this.initPresets()
     const id = 'tmpl_cust_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5)
 
@@ -187,6 +312,7 @@ class TemplateModel {
       category: 'custom',
       description: description || '',
       structure: typeof structure === 'string' ? JSON.parse(structure) : structure,
+      samplePreview: samplePreview || null,
       createdBy: createdBy || 'User',
       isDefault: false,
       createdAt: new Date().toISOString(),
@@ -239,6 +365,7 @@ class TemplateModel {
       category: t.category || 'custom',
       description: t.description || '',
       structure: t.structure,
+      samplePreview: t.samplePreview || null,
       createdBy: t.createdBy || 'System',
       isDefault: Boolean(t.isDefault),
       createdAt: t.createdAt,

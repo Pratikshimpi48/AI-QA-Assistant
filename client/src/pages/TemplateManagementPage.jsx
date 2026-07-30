@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react'
 import Navbar from '../components/Navbar'
+import TemplatePreviewModal from '../components/TemplatePreviewModal'
 import { getTemplates, createTemplate, deleteTemplate } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 
 export default function TemplateManagementPage() {
-  const { isAuthenticated, user } = useAuth()
+  const { isAuthenticated } = useAuth()
   const [activeType, setActiveType] = useState('test-cases')
   const [templates, setTemplates] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [previewTemplate, setPreviewTemplate] = useState(null)
 
   // Form State
   const [showModal, setShowModal] = useState(false)
@@ -246,15 +248,33 @@ export default function TemplateManagementPage() {
                   </div>
                 </div>
 
-                <div style={{ marginTop: '1.5rem', pt: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)', fontSize: '0.75rem', color: '#64748b', display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)', fontSize: '0.75rem', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span>Created by: {tmpl.createdBy}</span>
-                  <span>{tmpl.isDefault ? '⭐ Default' : ''}</span>
+                  <button
+                    onClick={() => setPreviewTemplate(tmpl)}
+                    style={{
+                      background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.3)',
+                      color: '#818cf8', padding: '0.3rem 0.75rem', borderRadius: '0.5rem',
+                      fontSize: '0.775rem', fontWeight: 700, cursor: 'pointer',
+                      display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                    }}
+                  >
+                    👁️ Preview Layout
+                  </button>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Template Preview Modal */}
+      {previewTemplate && (
+        <TemplatePreviewModal
+          template={previewTemplate}
+          onClose={() => setPreviewTemplate(null)}
+        />
+      )}
 
       {/* Modal for Creating Custom Template */}
       {showModal && (

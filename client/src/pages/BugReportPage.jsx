@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { generateBugReport, checkDuplicateBugs, getTemplates } from '../services/api'
 import Navbar from '../components/Navbar'
 import ExportButton from '../components/ExportButton'
+import TemplatePreviewModal from '../components/TemplatePreviewModal'
 import DuplicateDetectionModal from '../components/DuplicateDetectionModal'
 import { exportBugReport } from '../utils/exportUtils'
 import { useAuth } from '../context/AuthContext'
@@ -32,6 +33,7 @@ export default function BugReportPage() {
   const [copied, setCopied]                     = useState(false)
   const [templatesList, setTemplatesList]       = useState([])
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
+  const [previewTemplate, setPreviewTemplate]    = useState(null)
 
   // Duplicate detection state
   const [showDupModal, setShowDupModal]     = useState(false)
@@ -197,28 +199,55 @@ ${bugReport.workaround || 'None'}
                   Manage Templates →
                 </a>
               </label>
-              <select
-                id="bug-template-select"
-                value={selectedTemplateId}
-                onChange={e => setSelectedTemplateId(e.target.value)}
-                style={{
-                  width: '100%', padding: '0.75rem 1rem', borderRadius: '0.625rem',
-                  background: 'rgba(0,0,0,0.25)',
-                  border: '1px solid var(--color-border)',
-                  color: 'var(--color-text)',
-                  fontSize: '0.875rem', fontFamily: 'Inter, sans-serif',
-                  outline: 'none', cursor: 'pointer',
-                  boxSizing: 'border-box',
-                }}
-              >
-                <option value="">📋 Standard Jira & GitHub Bug Report (Default)</option>
-                {templatesList.map(t => (
-                  <option key={t.id} value={t.id}>
-                    {t.category === 'preset' ? 'Official' : 'Custom'}: {t.name}
-                  </option>
-                ))}
-              </select>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <select
+                  id="bug-template-select"
+                  value={selectedTemplateId}
+                  onChange={e => setSelectedTemplateId(e.target.value)}
+                  style={{
+                    flex: 1, padding: '0.75rem 1rem', borderRadius: '0.625rem',
+                    background: 'rgba(0,0,0,0.25)',
+                    border: '1px solid var(--color-border)',
+                    color: 'var(--color-text)',
+                    fontSize: '0.875rem', fontFamily: 'Inter, sans-serif',
+                    outline: 'none', cursor: 'pointer',
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  <option value="">📋 Standard Jira & GitHub Bug Report (Default)</option>
+                  {templatesList.map(t => (
+                    <option key={t.id} value={t.id}>
+                      {t.category === 'preset' ? 'Official' : 'Custom'}: {t.name}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  title="Preview how this template bug report looks"
+                  onClick={() => {
+                    const target = templatesList.find(t => t.id === selectedTemplateId) || templatesList[0]
+                    setPreviewTemplate(target)
+                  }}
+                  style={{
+                    padding: '0.75rem 0.9rem', borderRadius: '0.625rem',
+                    background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.3)',
+                    color: '#818cf8', fontSize: '0.85rem', fontWeight: 700,
+                    cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                  }}
+                >
+                  👁️ Preview
+                </button>
+              </div>
             </div>
+
+            {/* Template Preview Modal */}
+            {previewTemplate && (
+              <TemplatePreviewModal
+                template={previewTemplate}
+                onClose={() => setPreviewTemplate(null)}
+              />
+            )}
 
             {error && (
               <div style={{
