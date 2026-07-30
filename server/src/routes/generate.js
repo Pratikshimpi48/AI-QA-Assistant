@@ -4,26 +4,13 @@ const express    = require('express')
 const router     = express.Router()
 const { generate, PROVIDERS } = require('../services/aiProvider')
 
+const { optionalAuth } = require('../middleware/auth')
+const HistoryModel    = require('../models/History')
+
 /**
  * POST /api/generate
- *
- * Request body:
- * {
- *   requirements:  string       — pasted requirement text
- *   fileName?:     string       — original file name (for context)
- *   fileContent?:  string       — extracted file text (.txt/.md/.csv)
- *   provider?:     'gemini'|'groq'  — optional explicit model choice
- *   model?:        string       — optional specific Groq model override
- * }
- *
- * Response:
- * {
- *   status:    'ok',
- *   testCases: Array<TestCase>,
- *   meta:      { source, fileName, charCount, generatedAt, provider, model, fallback? }
- * }
  */
-router.post('/', async (req, res, next) => {
+router.post('/', optionalAuth, async (req, res, next) => {
   try {
     const {
       requirements = '',
@@ -56,6 +43,18 @@ router.post('/', async (req, res, next) => {
       provider,
       model,
     })
+
+    // Save to user history if authenticated
+    if (req.user) {
+      const title = fileName ? `File: ${fileName}` : `Test Suite (${result.testCases.length} Cases)`
+      await HistoryModel.create({
+        userId: req.user.id,
+        type:   'test-cases',
+        title,
+        data:   result.testCases,
+        meta:   result.meta,
+      })
+    }
 
     return res.status(200).json({
       status:    'ok',

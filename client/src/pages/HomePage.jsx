@@ -1,6 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import Navbar from '../components/Navbar'
 import { generateTestCases, getProviders } from '../services/api'
+import ExportButton from '../components/ExportButton'
+import { exportTestCases } from '../utils/exportUtils'
+import { useAuth } from '../context/AuthContext'
+import { addGuestHistoryItem } from '../utils/guestSession'
 
 /* ── Shared layout helpers ──────────────────────────────────── */
 const container = {
@@ -129,6 +133,8 @@ export default function HomePage() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
+  const { isAuthenticated } = useAuth()
+
   /* ── Generate — real AI call ─────────────────────────────── */
   const handleGenerate = async () => {
     if (!requirements.trim() && !file) return
@@ -144,6 +150,16 @@ export default function HomePage() {
       }
       const data = await generateTestCases(payload)
       setResult(data)
+
+      if (!isAuthenticated && data.testCases) {
+        const title = file ? `File: ${file.name}` : `Test Suite (${data.testCases.length} Cases)`
+        addGuestHistoryItem({
+          type: 'test-cases',
+          title,
+          data: data.testCases,
+          meta: data.meta,
+        })
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -511,7 +527,7 @@ export default function HomePage() {
                       {result.testCases.length} Test Cases Generated
                     </h3>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                     <span style={{
                       fontSize: '0.7rem', padding: '0.2rem 0.6rem', borderRadius: '9999px',
                       background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)',
@@ -522,6 +538,10 @@ export default function HomePage() {
                     <span style={{ fontSize: '0.7rem', color: '#475569' }}>
                       {result.meta?.model}
                     </span>
+                    <ExportButton
+                      label="Export Test Cases"
+                      onExport={(format) => exportTestCases(result.testCases, format, 'Generated_Test_Cases')}
+                    />
                   </div>
                 </div>
 

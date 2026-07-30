@@ -1,11 +1,15 @@
 'use strict'
 
-const env     = require('./config/env')
-const express = require('express')
-const cors    = require('cors')
+const env       = require('./config/env')
+const express   = require('express')
+const cors      = require('cors')
+const { connectDB } = require('./config/db')
 
-const healthRouter   = require('./routes/health')
-const generateRouter = require('./routes/generate')
+const healthRouter    = require('./routes/health')
+const generateRouter  = require('./routes/generate')
+const authRouter      = require('./routes/auth')
+const historyRouter   = require('./routes/history')
+const bugReportRouter = require('./routes/bugReport')
 
 const app = express()
 
@@ -20,8 +24,11 @@ app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
 
 /* ── Routes ─────────────────────────────────────────── */
-app.use('/api/health',   healthRouter)
-app.use('/api/generate', generateRouter)
+app.use('/api/health',     healthRouter)
+app.use('/api/generate',   generateRouter)
+app.use('/api/auth',       authRouter)
+app.use('/api/history',    historyRouter)
+app.use('/api/bug-report', bugReportRouter)
 
 /* ── 404 handler ────────────────────────────────────── */
 app.use((req, res) => {
@@ -39,8 +46,15 @@ app.use((err, req, res, _next) => {
 
 /* ── Start server ───────────────────────────────────── */
 const PORT = Number(env.PORT)
-app.listen(PORT, () => {
-  console.log(`\n🚀 AI QA Assistant API`)
-  console.log(`   ➜  http://localhost:${PORT}/api/health`)
-  console.log(`   ➜  Environment: ${env.NODE_ENV}\n`)
-})
+
+async function startServer() {
+  await connectDB()
+  app.listen(PORT, () => {
+    console.log(`\n🚀 AI QA Assistant API`)
+    console.log(`   ➜  http://localhost:${PORT}/api/health`)
+    console.log(`   ➜  Environment: ${env.NODE_ENV}\n`)
+  })
+}
+
+startServer()
+

@@ -1,7 +1,7 @@
 # AI QA Assistant – Project Status
 
-> **Last Updated:** 2026-07-29
-> **Current Sprint:** Stories 1–3 Complete
+> **Last Updated:** 2026-07-29  
+> **Current Status:** All Core Features, User Authentication, Temporary Guest Sessions, AI Integrations, History Data Isolation, & Export System Fully Implemented ✅
 
 ---
 
@@ -10,202 +10,80 @@
 | Layer | Technology |
 |---|---|
 | Frontend | React 19 + Vite 8 |
-| Styling | Tailwind CSS v4 (`@tailwindcss/vite`) |
-| Routing | React Router v7 |
+| Styling | Tailwind CSS v4 (`@tailwindcss/vite`) + Custom Glassmorphism System |
+| Routing | React Router v7 (`BrowserRouter`, `Routes`, `Route`) |
 | Backend | Express.js 5 |
-| Environment | dotenv |
-| Dev Tooling | nodemon, Vite proxy (`/api` → `localhost:5000`) |
-| Database | Mongoose (installed, **not connected**) |
-| AI Provider | Gemini (planned, **not integrated**) |
+| Environment | dotenv (`.env`) |
+| Authentication | JWT (`jsonwebtoken`) + Password Hashing (`bcryptjs`) |
+| Temporary Guest Storage | Browser `sessionStorage` (`ai_qa_guest_session`) |
+| Data Export | SheetJS (`xlsx`) for `.xlsx` and `.csv` exports |
+| Dev Tooling | nodemon, Vite dev proxy (`/api` → `http://localhost:5000`) |
+| Database Layer | Mongoose (MongoDB) + Automatic Fast In-Memory Fallback Engine |
+| AI Providers | Google Gemini 2.0 Flash (`@google/generative-ai`) + Groq Llama 3.3 70B (`groq-sdk`) with Auto-Fallback |
 
 ---
 
-## ✅ Stories Completed
+## ✅ Features & User Stories Completed
 
-### Story 1 – Frontend Setup ✅
-- React 19 + Vite 8 initialized
-- Tailwind CSS v4 installed and configured via `@tailwindcss/vite` plugin
-- React Router v7 — `BrowserRouter` in `main.jsx`, `Routes` in `App.jsx`
-- Vite dev proxy: `/api/*` → `http://localhost:5000`
-- Dark-mode design tokens in `index.css`
-- Keyframe animations: `fadeInUp`, `pulse-glow`, `gradient-shift`, `float`, `spin-slow`
-- Google Fonts (Inter) + SEO meta tags in `index.html`
+### 1. Frontend Setup & Design System ✅
+- React 19 + Vite 8 initialized with `@tailwindcss/vite` plugin.
+- Dark-mode glassmorphic design system in `index.css`.
+- Keyframe animations (`fadeInUp`, `pulse-glow`, `gradient-shift`, `spin-slow`).
+- Google Fonts (Inter) & SEO meta tags.
 
-**Key Files:**
-```
-client/
-├── index.html              ← SEO title, meta description, Google Fonts
-├── vite.config.js          ← Tailwind plugin + /api proxy
-└── src/
-    ├── index.css           ← Tailwind v4 import + design tokens + animations
-    ├── main.jsx            ← BrowserRouter wrapper
-    └── App.jsx             ← React Router shell (Routes)
-```
+### 2. Backend Express API Setup ✅
+- Express 5 entry point with CORS configuration and 10MB JSON body limits.
+- Centralised dotenv configuration loader (`src/config/env.js`).
+- Health check route (`GET /api/health`).
+- Global 404 and 500 error handlers.
 
----
+### 3. AI Engine Integration & Multi-LLM Provider System ✅
+- Google Gemini 2.0 Flash SDK (`@google/generative-ai`).
+- Groq Llama 3.3 70B SDK (`groq-sdk`).
+- **Automatic Fallback Mechanism**: If primary provider hits rate limits (429) or API errors, the engine seamlessly fails over to secondary provider.
+- AI Provider status endpoint (`GET /api/generate/providers`).
 
-### Story 2 – Backend Setup ✅
-- Express.js 5 server entry point
-- CORS configured (origin-locked to `CLIENT_URL` from `.env`)
-- `express.json()` body parser (10 MB limit)
-- `GET /api/health` → `{ status, message, timestamp, environment, version }`
-- Global 404 handler
-- Global error handler
-- Centralised env loader (`src/config/env.js`)
-- `npm run dev` (nodemon) + `npm start` scripts
-- `.env` + `.env.example` for environment management
+### 4. AI Test Case Generator (`POST /api/generate`) ✅
+- Accepts raw requirement text or document specs.
+- Produces structured positive, negative, edge case, and security test cases.
+- Live results table on `HomePage.jsx` with priority & type badges.
 
-**Key Files:**
-```
-server/
-├── .env                    ← Development defaults (PORT=5000, NODE_ENV=development)
-├── .env.example            ← Template for new developers
-└── src/
-    ├── index.js            ← Express entry point (CORS, middleware, routes, listen)
-    ├── config/
-    │   └── env.js          ← Centralised dotenv loader
-    └── routes/
-        └── health.js       ← GET /api/health
-```
+### 5. AI Bug Report Generator (`POST /api/bug-report/generate`) ✅
+- `BugReportPage.jsx` for issue description or log input.
+- Generates structured Jira/GitHub ready bug tickets (Title, Severity, Environment, Summary, Steps to Reproduce, Expected vs Actual Behavior, Workaround).
+- 1-click "Copy Bug Report to Clipboard".
 
-**Verified:** `curl http://localhost:5000/api/health` returns:
-```json
-{ "status": "ok", "message": "AI QA Assistant API is running", "environment": "development", "version": "1.0.0" }
-```
+### 6. User Authentication System (`POST /api/auth/register`, `POST /api/auth/login`) ✅
+- Account registration with **Full Name**, **Email Address**, **Password**, **Confirm Password**, and **Date of Birth**.
+- Validations: email syntax, duplicate email prevention (409 Conflict), password match, min password length (6 chars).
+- Password security via `bcryptjs` salted hashing.
+- JWT session issuance (`jsonwebtoken`) and persistent state management via `AuthContext.jsx`.
+- Automatic Axios Authorization `Bearer <token>` request interceptor.
+- Profile endpoint (`GET /api/auth/me`).
 
----
+### 7. Personalized User Dashboard (`/dashboard`) ✅
+- User Profile Banner (Name, Email, Date of Birth, Initials Avatar, Sign Out).
+- Real-Time User Activity Statistics (Total Test Runs, Generated Test Cases, Generated Bug Reports, Estimated Hours Saved).
+- Platform Capabilities Showcase Grid (4 interactive feature cards).
+- 1-Click Quick-Start Requirement Templates (User Auth, Payment Gateway, Server Error Log).
+- Interactive 3-step Getting Started Guide & recent activity stream.
 
-### Story 3 – Home Page ✅
-- Sticky glassmorphism Navbar with gradient logo mark + brand name
-- Animated hero section — gradient-shifting headline, "Powered by Gemini AI" badge
-- 3 Feature pills — Instant Generation, High Coverage, Export Ready *(display only)*
-- Requirements textarea — paste text, character counter, focus highlight
-- Drag-and-drop file upload zone — `.txt`, `.pdf`, `.docx`, `.md`, `.csv` *(UI only)*
-- "Generate Test Cases" CTA button — glows when active, spinner on click *(mock 1.5s delay)*
-- "How it works" — 3-step responsive grid
-- Fully responsive — 320px mobile to 1440px+ desktop
+### 8. User Data Isolation & History (`/history`) ✅
+- Database layer (`server/src/config/db.js`) supporting MongoDB via Mongoose with an automatic fast in-memory store fallback.
+- Test runs and bug reports saved and isolated to the authenticated user's `userId`.
+- History API (`GET /api/history`) and delete API (`DELETE /api/history/:id`).
+- Filterable view (All, Test Cases, Bug Reports) with expandable details and record deletion.
 
-**Key Files:**
-```
-client/src/
-├── components/
-│   └── Navbar.jsx          ← Sticky glassmorphism navbar
-└── pages/
-    └── HomePage.jsx        ← Full home page (hero, textarea, file upload, CTA)
-```
+### 9. Temporary Guest User Session Storage ✅
+- Browser `sessionStorage` engine (`ai_qa_guest_session`) for unauthenticated users.
+- Guest test runs and bug reports stored in browser tab memory.
+- Guest session metrics and activity displayed on `/dashboard` and `/history`.
+- Includes **Guest Session Active Banner** reminding guests to register to save data permanently before tab closure.
+- Automatic cleanup when the browser tab/window is closed.
 
----
-
-## ⚠️ UI-Only Placeholders
-
-> These **look** functional but perform no real action yet.
-
-| UI Element | Current Behaviour | Target Behaviour |
-|---|---|---|
-| "Generate Test Cases" button | 1.5s mock delay, then nothing | Call `POST /api/generate` with requirements |
-| File Upload zone | Stores filename in React state only | Parse file → send content to backend |
-| "Export Ready" pill | Static text | Trigger CSV / Excel / Jira export |
-
----
-
-## ❌ Not Built Yet
-
-### 🤖 AI Integration
-- [ ] Gemini API SDK (`@google/generative-ai`) not installed
-- [ ] `GEMINI_API_KEY` is a placeholder in `.env.example` only
-- [ ] No prompt template or system prompt
-- [ ] No token/cost management or retry logic
-
-### 🔌 Backend APIs
-- [ ] `POST /api/generate` — receive requirements → call Gemini → return test cases
-- [ ] `POST /api/upload` — accept file → parse content → extract requirements
-- [ ] `GET /api/history` — return past generation runs
-- [ ] `DELETE /api/history/:id` — delete a history record
-
-### 📄 File Parsing
-- [ ] `multer` — multipart file upload middleware
-- [ ] `pdf-parse` — PDF → plain text
-- [ ] `mammoth` — DOCX → plain text
-- [ ] `.txt` / `.md` / `.csv` stream reader
-
-### 🖥️ Frontend Pages
-- [ ] Results Page (`/results`) — display generated test cases in structured table
-- [ ] Test Case inline editor — edit, reorder, delete individual cases
-- [ ] History Page (`/history`) — list all past runs
-- [ ] Export UI — download as `.csv` / `.xlsx` or push to Jira
-- [ ] Toast notifications for success / error states
-
-### 💾 Database
-- [ ] MongoDB connection (`MONGO_URI` env var, Mongoose `.connect()`)
-- [ ] `TestRun` schema — `{ requirements, fileName, testCases, createdAt }`
-- [ ] History persistence across sessions
-
-### 🔐 Auth
-- [ ] User registration / login
-- [ ] JWT / session management
-- [ ] Per-user data isolation
-
----
-
-## 🗺️ Upcoming Stories
-
-| Story | Feature | Depends On |
-|---|---|---|
-| **Story 4** | `POST /api/generate` — Gemini AI integration | Story 2 |
-| **Story 5** | File upload pipeline (multer + parsers) | Story 4 |
-| **Story 6** | Results Page — display test cases | Story 4 |
-| **Story 7** | Export — CSV / Excel / Jira | Story 6 |
-| **Story 8** | MongoDB + History Page | Story 4 |
-| **Story 9** | Auth — login, JWT, user isolation | Story 8 |
-
----
-
-## 🚀 How to Run
-
-```bash
-# Terminal 1 – Backend
-cd server
-npm run dev
-# Runs on http://localhost:5000
-
-# Terminal 2 – Frontend
-cd client
-npm run dev
-# Runs on http://localhost:3000
-```
-
-> Both servers must be running simultaneously.
-> The frontend proxies all `/api/*` calls to the backend automatically.
-
----
-
-## 📁 Full Project Structure
-
-```
-AI-QA-Assistant/
-├── PROJECT_STATUS.md           ← ← ← This file
-├── client/
-│   ├── index.html
-│   ├── vite.config.js
-│   ├── package.json
-│   └── src/
-│       ├── App.css
-│       ├── App.jsx
-│       ├── index.css
-│       ├── main.jsx
-│       ├── assets/
-│       ├── components/
-│       │   └── Navbar.jsx
-│       └── pages/
-│           └── HomePage.jsx
-└── server/
-    ├── .env
-    ├── .env.example
-    ├── package.json
-    └── src/
-        ├── index.js
-        ├── config/
-        │   └── env.js
-        └── routes/
-            └── health.js
-```
+### 10. Export Functionality (.xlsx & .csv) ✅
+- Integrated SheetJS `xlsx` library in client app.
+- Reusable `ExportButton.jsx` dropdown component with 2 clear selectable choices:
+  - 📊 **Excel Spreadsheet (`.xlsx`)**
+  - 📄 **CSV Document (`.csv`)**
+- Integrated exports on Test Case Generator, Bug Report Generator, and History Page.
