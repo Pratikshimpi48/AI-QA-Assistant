@@ -1,11 +1,11 @@
 'use strict'
 
-const express    = require('express')
-const router     = express.Router()
+const express = require('express')
+const router = express.Router()
 const { generate, PROVIDERS } = require('../services/aiProvider')
 
 const { optionalAuth } = require('../middleware/auth')
-const HistoryModel    = require('../models/History')
+const HistoryModel = require('../models/History')
 
 /**
  * POST /api/generate
@@ -24,7 +24,7 @@ router.post('/', optionalAuth, async (req, res, next) => {
     // Basic validation
     if (!requirements.trim() && !fileContent) {
       return res.status(400).json({
-        status:  'error',
+        status: 'error',
         message: 'At least one of "requirements" or "fileContent" is required.',
       })
     }
@@ -32,7 +32,7 @@ router.post('/', optionalAuth, async (req, res, next) => {
     // Validate provider if explicitly supplied
     if (provider && !Object.values(PROVIDERS).includes(provider)) {
       return res.status(400).json({
-        status:  'error',
+        status: 'error',
         message: `Invalid provider "${provider}". Valid options: ${Object.values(PROVIDERS).join(', ')}`,
       })
     }
@@ -51,17 +51,17 @@ router.post('/', optionalAuth, async (req, res, next) => {
       const title = fileName ? `File: ${fileName}` : `Test Suite (${result.testCases.length} Cases)`
       await HistoryModel.create({
         userId: req.user.id,
-        type:   'test-cases',
+        type: 'test-cases',
         title,
-        data:   result.testCases,
-        meta:   result.meta,
+        data: result.testCases,
+        meta: result.meta,
       })
     }
 
     return res.status(200).json({
-      status:    'ok',
+      status: 'ok',
       testCases: result.testCases,
-      meta:      result.meta,
+      meta: result.meta,
     })
   } catch (err) {
     // Surface configuration errors with a helpful 503 (not 500)
@@ -71,7 +71,7 @@ router.post('/', optionalAuth, async (req, res, next) => {
       err.message?.includes('No AI provider')
     ) {
       return res.status(503).json({
-        status:  'error',
+        status: 'error',
         message: err.message,
       })
     }
@@ -88,15 +88,15 @@ router.get('/providers', (_req, res) => {
     status: 'ok',
     providers: [
       {
-        id:          PROVIDERS.GEMINI,
-        name:        'Google Gemini Flash',
-        available:   !!process.env.GEMINI_API_KEY,
+        id: PROVIDERS.GEMINI,
+        name: 'Google Gemini 2.0 Flash',
+        available: !!process.env.GEMINI_API_KEY,
         description: 'Fast, accurate — free via Google AI Studio',
       },
       {
-        id:          PROVIDERS.GROQ,
-        name:        'Groq (Llama 3.3 70B)',
-        available:   !!process.env.GROQ_API_KEY,
+        id: PROVIDERS.GROQ,
+        name: 'Groq (Llama 3.3 70B)',
+        available: !!process.env.GROQ_API_KEY,
         description: 'Ultra-fast Llama 3.3 70B — free via Groq Console',
       },
     ],

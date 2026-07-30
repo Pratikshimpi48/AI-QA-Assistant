@@ -50,13 +50,8 @@ Each test case object MUST have these exact fields:
  * @returns {Array}
  */
 function parseResponse(text) {
-  if (!text || typeof text !== 'string') return []
-
-  // Strip <thought>...</thought> reasoning blocks if present
-  let cleaned = text.replace(/<thought>[\s\S]*?<\/thought>/gi, '').trim()
-
   // Strip markdown code fences if present
-  cleaned = cleaned
+  const cleaned = text
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/\s*```\s*$/, '')
     .trim()
@@ -64,16 +59,13 @@ function parseResponse(text) {
   // Try straight parse
   try {
     const parsed = JSON.parse(cleaned)
-    if (Array.isArray(parsed)) return parsed
+    return Array.isArray(parsed) ? parsed : []
   } catch { /* continue */ }
 
   // Try to extract the first [...] block
   const match = cleaned.match(/\[[\s\S]*\]/)
   if (match) {
-    try {
-      const parsed = JSON.parse(match[0])
-      if (Array.isArray(parsed)) return parsed
-    } catch { /* continue */ }
+    try { return JSON.parse(match[0]) } catch { /* continue */ }
   }
 
   return []
