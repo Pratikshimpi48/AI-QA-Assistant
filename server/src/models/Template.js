@@ -51,12 +51,12 @@ const MongoTemplate = mongoose.model('Template', templateSchema)
 const PRESET_TEMPLATES = [
   {
     id: 'tmpl_spreadsheet_matrix',
-    name: 'Enterprise QA Excel Test Matrix (Blue Header & Status Dropdowns)',
+    name: 'Pratik Shimpi Template',
     type: 'test-cases',
     category: 'preset',
-    description: 'Exact enterprise QA spreadsheet grid layout featuring Section Headers, Pre-conditions, Step Descriptions, Expected vs Actual Results, Test Data, Status dropdowns, Bug IDs, and QA Comments.',
+    description: 'Custom Enterprise QA spreadsheet grid layout featuring Section Headers, Pre-conditions, Step Descriptions, Expected vs Actual Results, Test Data, Status dropdowns, Bug IDs, and QA Comments.',
     isDefault: true,
-    createdBy: 'QA Enterprise Standard',
+    createdBy: 'Pratik Shimpi (Admin)',
     createdAt: new Date().toISOString(),
     structure: {
       fields: ['testCaseId', 'scenario', 'stepDescription', 'expectedResult', 'actualResult', 'testData', 'status', 'bugId', 'qaComments'],

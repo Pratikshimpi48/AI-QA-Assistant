@@ -608,7 +608,7 @@ export default function HomePage() {
                           color: viewMode === 'excel' ? '#ffffff' : '#94a3b8',
                         }}
                       >
-                        📊 Enterprise Matrix
+                        📊 Pratik Shimpi Matrix
                       </button>
                       <button
                         onClick={() => setViewMode('cards')}
