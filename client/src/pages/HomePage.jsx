@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import Navbar from '../components/Navbar'
-import { generateTestCases, getProviders } from '../services/api'
+import { generateTestCases, getProviders, getTemplates } from '../services/api'
 import ExportButton from '../components/ExportButton'
 import { exportTestCases } from '../utils/exportUtils'
 import { useAuth } from '../context/AuthContext'
@@ -89,8 +89,10 @@ export default function HomePage() {
   const [isLoading,    setIsLoading]    = useState(false)
   const [error,        setError]        = useState(null)
   const [result,       setResult]       = useState(null)
-  const [provider,     setProvider]     = useState('auto')   // 'auto'|'gemini'|'groq'
-  const [providers,    setProviders]    = useState([])        // available providers from backend
+  const [provider,           setProvider]           = useState('auto')   // 'auto'|'gemini'|'groq'
+  const [providers,          setProviders]          = useState([])        // available providers from backend
+  const [templatesList,      setTemplatesList]      = useState([])
+  const [selectedTemplateId, setSelectedTemplateId] = useState('')
   const fileInputRef = useRef(null)
 
   /* Fetch which providers are configured on the backend */
@@ -98,6 +100,10 @@ export default function HomePage() {
     getProviders()
       .then(d => setProviders(d.providers ?? []))
       .catch(() => {}) // silent — backend may not be running yet
+
+    getTemplates('test-cases')
+      .then(d => setTemplatesList(d.templates ?? []))
+      .catch(() => {})
   }, [])
 
   /* ── File processing ──────────────────────────────────────── */
@@ -147,6 +153,7 @@ export default function HomePage() {
         requirements: requirements.trim(),
         ...(file     && { fileName: file.name, fileContent: file.content }),
         ...(provider !== 'auto' && { provider }),
+        ...(selectedTemplateId && { templateId: selectedTemplateId }),
       }
       const data = await generateTestCases(payload)
       setResult(data)
@@ -455,6 +462,41 @@ export default function HomePage() {
                     {providers.map(p => (
                       <option key={p.id} value={p.id} disabled={!p.available}>
                         {p.available ? '✅' : '❌'} {p.name}{!p.available ? ' — key not set' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* ── Report Template Selector ──────────────────────── */}
+                <div>
+                  <label htmlFor="template-select" style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    fontSize: '0.875rem', fontWeight: 500,
+                    color: 'var(--color-text-muted)', marginBottom: '0.5rem',
+                  }}>
+                    <span>Report Template Standard</span>
+                    <a href="/templates" style={{ fontSize: '0.75rem', color: '#818cf8', textDecoration: 'none', fontWeight: 600 }}>
+                      Manage Templates →
+                    </a>
+                  </label>
+                  <select
+                    id="template-select"
+                    value={selectedTemplateId}
+                    onChange={e => setSelectedTemplateId(e.target.value)}
+                    style={{
+                      width: '100%', padding: '0.75rem 1rem', borderRadius: '0.625rem',
+                      background: 'var(--color-surface-2)',
+                      border: '1px solid var(--color-border)',
+                      color: 'var(--color-text)',
+                      fontSize: '0.875rem', fontFamily: 'Inter, sans-serif',
+                      outline: 'none', cursor: 'pointer',
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    <option value="">📋 Standard Enterprise QA Suite (Default)</option>
+                    {templatesList.map(t => (
+                      <option key={t.id} value={t.id}>
+                        {t.category === 'preset' ? 'Official' : 'Custom'}: {t.name}
                       </option>
                     ))}
                   </select>

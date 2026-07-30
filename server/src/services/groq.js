@@ -38,9 +38,9 @@ const GROQ_MODELS = [
  * @param {string|null} preferredModel  - Override the default model
  * @returns {Promise<{ testCases: Array, model: string, provider: string }>}
  */
-async function generateWithGroq(requirements, fileName = null, preferredModel = null) {
+async function generateWithGroq(requirements, fileName = null, preferredModel = null, template = null) {
   const client = getClient()
-  const { systemPrompt, userMessage } = buildPrompt(requirements, fileName)
+  const { systemPrompt, userMessage } = buildPrompt(requirements, fileName, template)
 
   const models = preferredModel
     ? [preferredModel, ...GROQ_MODELS.filter(m => m !== preferredModel)]

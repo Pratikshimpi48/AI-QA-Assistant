@@ -8,10 +8,11 @@
  * @param {string|null} fileName - Optional source filename
  * @returns {{ systemPrompt: string, userMessage: string }}
  */
-function buildPrompt(requirements, fileName = null) {
+function buildPrompt(requirements, fileName = null, template = null) {
   const source = fileName ? `document "${fileName}"` : 'the requirements below'
+  const templateNotice = template ? `\n\nORGANIZATIONAL REPORT TEMPLATE ("${template.name}"): Populate each test case using the required structure fields: ${JSON.stringify(template.structure?.fields || [])}` : ''
 
-  const systemPrompt = `You are an expert Principal QA Engineer with 15+ years of experience writing exhaustive, enterprise-grade software test cases. Your goal is to achieve 100% test coverage.
+  const systemPrompt = `You are an expert Principal QA Engineer with 15+ years of experience writing exhaustive, enterprise-grade software test cases. Your goal is to achieve 100% test coverage.${templateNotice}
 
 Analyse the provided requirements thoroughly and generate AS MANY comprehensive, detailed, non-redundant test cases as necessary to thoroughly test every aspect of the feature.
 
@@ -107,8 +108,10 @@ function parseResponse(text) {
   return []
 }
 
-function buildBugReportPrompt(issueDescription) {
-  const systemPrompt = `You are an expert QA Engineer. Your job is to transform raw issue descriptions, user reports, or log snippets into a professional, structured bug report suitable for Jira or GitHub Issues.
+function buildBugReportPrompt(issueDescription, template = null) {
+  const templateNotice = template ? `\n\nORGANIZATIONAL REPORT TEMPLATE ("${template.name}"): Populate the bug report using the required structure fields: ${JSON.stringify(template.structure?.fields || [])}` : ''
+
+  const systemPrompt = `You are an expert QA Engineer. Your job is to transform raw issue descriptions, user reports, or log snippets into a professional, structured bug report suitable for Jira or GitHub Issues.${templateNotice}
 
 OUTPUT FORMAT — respond with a valid JSON object and NOTHING ELSE.
 No markdown code fences, no extra text. Only the raw JSON object.

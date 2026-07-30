@@ -60,7 +60,21 @@ async function optionalAuth(req, _res, next) {
   next()
 }
 
+/**
+ * Require administrator role middleware
+ */
+function requireAdmin(req, res, next) {
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({
+      status:  'error',
+      message: 'Access denied. Administrator privileges required.',
+    })
+  }
+  next()
+}
+
 module.exports = {
   authenticateToken,
   optionalAuth,
+  requireAdmin,
 }

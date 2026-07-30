@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { generateBugReport, checkDuplicateBugs } from '../services/api'
+import { useState, useEffect } from 'react'
+import { generateBugReport, checkDuplicateBugs, getTemplates } from '../services/api'
 import Navbar from '../components/Navbar'
 import ExportButton from '../components/ExportButton'
 import DuplicateDetectionModal from '../components/DuplicateDetectionModal'
@@ -30,6 +30,8 @@ export default function BugReportPage() {
   const [loading, setLoading]                   = useState(false)
   const [error, setError]                       = useState('')
   const [copied, setCopied]                     = useState(false)
+  const [templatesList, setTemplatesList]       = useState([])
+  const [selectedTemplateId, setSelectedTemplateId] = useState('')
 
   // Duplicate detection state
   const [showDupModal, setShowDupModal]     = useState(false)
@@ -40,6 +42,12 @@ export default function BugReportPage() {
 
   const { isAuthenticated } = useAuth()
 
+  useEffect(() => {
+    getTemplates('bug-report')
+      .then(res => setTemplatesList(res.templates || []))
+      .catch(() => {})
+  }, [])
+
   /** Actually generate the bug report (called after duplicate check passes / ignored) */
   const doGenerate = async () => {
     setShowDupModal(false)
@@ -48,7 +56,7 @@ export default function BugReportPage() {
     setLoading(true)
 
     try {
-      const res = await generateBugReport({ issueDescription: issueDescription.trim() })
+      const res = await generateBugReport({ issueDescription: issueDescription.trim(), templateId: selectedTemplateId })
       setBugReport(res.bugReport)
 
       if (!isAuthenticated && res.bugReport) {
@@ -176,6 +184,41 @@ ${bugReport.workaround || 'None'}
                 boxSizing: 'border-box', lineHeight: 1.6, resize: 'vertical',
               }}
             />
+
+            {/* ── Report Template Selector ──────────────────────── */}
+            <div style={{ marginTop: '1.25rem' }}>
+              <label htmlFor="bug-template-select" style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                fontSize: '0.875rem', fontWeight: 500,
+                color: 'var(--color-text-muted)', marginBottom: '0.5rem',
+              }}>
+                <span>Organizational Bug Template</span>
+                <a href="/templates" style={{ fontSize: '0.75rem', color: '#818cf8', textDecoration: 'none', fontWeight: 600 }}>
+                  Manage Templates →
+                </a>
+              </label>
+              <select
+                id="bug-template-select"
+                value={selectedTemplateId}
+                onChange={e => setSelectedTemplateId(e.target.value)}
+                style={{
+                  width: '100%', padding: '0.75rem 1rem', borderRadius: '0.625rem',
+                  background: 'rgba(0,0,0,0.25)',
+                  border: '1px solid var(--color-border)',
+                  color: 'var(--color-text)',
+                  fontSize: '0.875rem', fontFamily: 'Inter, sans-serif',
+                  outline: 'none', cursor: 'pointer',
+                  boxSizing: 'border-box',
+                }}
+              >
+                <option value="">📋 Standard Jira & GitHub Bug Report (Default)</option>
+                {templatesList.map(t => (
+                  <option key={t.id} value={t.id}>
+                    {t.category === 'preset' ? 'Official' : 'Custom'}: {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             {error && (
               <div style={{

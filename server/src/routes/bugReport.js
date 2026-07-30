@@ -5,6 +5,7 @@ const router          = express.Router()
 const { optionalAuth, authenticateToken } = require('../middleware/auth')
 const HistoryModel    = require('../models/History')
 const { buildBugReportPrompt, parseBugReportResponse } = require('../services/promptBuilder')
+const { TemplateModel } = require('../models/Template')
 const { detectDuplicates } = require('../services/duplicateDetection')
 const { GoogleGenerativeAI } = require('@google/generative-ai')
 const Groq = require('groq-sdk')
@@ -15,7 +16,7 @@ const Groq = require('groq-sdk')
  */
 router.post('/generate', optionalAuth, async (req, res, next) => {
   try {
-    const { issueDescription } = req.body
+    const { issueDescription, templateId } = req.body
 
     if (!issueDescription || !issueDescription.trim()) {
       return res.status(400).json({
@@ -24,7 +25,14 @@ router.post('/generate', optionalAuth, async (req, res, next) => {
       })
     }
 
-    const { systemPrompt, userMessage } = buildBugReportPrompt(issueDescription)
+    let template = null
+    if (templateId) {
+      try {
+        template = await TemplateModel.findById(templateId)
+      } catch (_e) { /* ignore */ }
+    }
+
+    const { systemPrompt, userMessage } = buildBugReportPrompt(issueDescription, template)
     let bugReport = null
     let providerName = 'gemini'
 
@@ -32,7 +40,7 @@ router.post('/generate', optionalAuth, async (req, res, next) => {
       try {
         const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
         const model = ai.getGenerativeModel({
-          model: 'gemini-2.0-flash',
+          model: 'gemini-flash-latest',
           systemInstruction: systemPrompt,
         })
         const resp = await model.generateContent(userMessage)

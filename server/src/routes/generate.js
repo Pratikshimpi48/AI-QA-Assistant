@@ -19,6 +19,7 @@ router.post('/', optionalAuth, async (req, res, next) => {
       provider,
       model,
       targetCount,
+      templateId,
     } = req.body
 
     // Basic validation
@@ -44,6 +45,7 @@ router.post('/', optionalAuth, async (req, res, next) => {
       provider,
       model,
       targetCount,
+      templateId,
     })
 
     // Save to user history if authenticated

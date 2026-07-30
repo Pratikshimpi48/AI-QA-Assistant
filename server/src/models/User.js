@@ -25,6 +25,11 @@ const userSchema = new mongoose.Schema({
     type: Date,
     required: true,
   },
+  role: {
+    type: String,
+    enum: ['admin', 'user'],
+    default: 'user',
+  },
   createdAt: {
     type: Date,
     default: Date.now,
@@ -92,10 +97,18 @@ class UserModel {
     return this.attachComparePassword(user)
   }
 
-  static async create({ name, email, password, dob }) {
+  static determineRole(email, requestedRole = 'user') {
+    if (email && email.toLowerCase().trim() === 'pratikshimpi48@gmail.com') {
+      return 'admin'
+    }
+    return requestedRole === 'admin' ? 'admin' : 'user'
+  }
+
+  static async create({ name, email, password, dob, role = 'user' }) {
     const salt = await bcrypt.genSalt(10)
     const hashedPassword = await bcrypt.hash(password, salt)
     const cleanEmail = email.toLowerCase().trim()
+    const finalRole = this.determineRole(cleanEmail, role)
     const now = new Date()
 
     let mongoUser = null
@@ -108,6 +121,7 @@ class UserModel {
           email: cleanEmail,
           password: hashedPassword,
           dob: new Date(dob),
+          role: finalRole,
         })
         await mongoUser.save()
       } catch (err) {
@@ -125,6 +139,7 @@ class UserModel {
       email: cleanEmail,
       password: hashedPassword,
       dob: new Date(dob).toISOString(),
+      role: finalRole,
       createdAt: now.toISOString(),
       comparePassword: async function(candidatePassword) {
         return await bcrypt.compare(candidatePassword, this.password)
@@ -147,13 +162,14 @@ class UserModel {
   static async updateProfile(userId, { name, email, dob }) {
     const sId = String(userId)
     const cleanEmail = email.toLowerCase().trim()
+    const role = this.determineRole(cleanEmail)
     let mongoUpdated = null
 
     if (getIsMongoConnected()) {
       try {
         mongoUpdated = await MongoUser.findByIdAndUpdate(
           userId,
-          { name: name.trim(), email: cleanEmail, dob: new Date(dob) },
+          { name: name.trim(), email: cleanEmail, dob: new Date(dob), role },
           { new: true }
         )
       } catch (err) {
@@ -168,6 +184,7 @@ class UserModel {
         name: name.trim(),
         email: cleanEmail,
         dob: new Date(dob).toISOString(),
+        role,
       }
       saveDiskStore()
     }
@@ -204,13 +221,64 @@ class UserModel {
     return this.attachComparePassword(updatedUser)
   }
 
+  static async getAllUsers() {
+    let users = []
+    if (getIsMongoConnected()) {
+      try {
+        users = await MongoUser.find().sort({ createdAt: -1 })
+      } catch (err) {
+        console.warn('[UserModel] Mongo getAllUsers error:', err.message)
+      }
+    }
+    if (!users || users.length === 0) {
+      users = memoryStore.users || []
+    }
+    return users.map(u => this.formatUser(u))
+  }
+
+  static async updateUserRole(userId, newRole) {
+    const sId = String(userId)
+    const validRole = newRole === 'admin' ? 'admin' : 'user'
+    let mongoUpdated = null
+
+    if (getIsMongoConnected()) {
+      try {
+        mongoUpdated = await MongoUser.findByIdAndUpdate(
+          userId,
+          { role: validRole },
+          { new: true }
+        )
+      } catch (err) {
+        console.warn('[UserModel] Mongo updateUserRole error:', err.message)
+      }
+    }
+
+    const idx = memoryStore.users.findIndex(u => u.id === sId || String(u._id) === sId)
+    if (idx !== -1) {
+      // Force pratikshimpi48@gmail.com to stay admin
+      if (memoryStore.users[idx].email && memoryStore.users[idx].email.toLowerCase() === 'pratikshimpi48@gmail.com') {
+        memoryStore.users[idx].role = 'admin'
+      } else {
+        memoryStore.users[idx].role = validRole
+      }
+      saveDiskStore()
+    }
+
+    const updatedUser = mongoUpdated || (idx !== -1 ? memoryStore.users[idx] : null)
+    return this.formatUser(updatedUser)
+  }
+
   static formatUser(user) {
     if (!user) return null
+    const email = user.email || ''
+    const isOwnerAdmin = email.toLowerCase().trim() === 'pratikshimpi48@gmail.com'
+
     return {
       id: user.id || user._id || String(user._id),
       name: user.name,
       email: user.email,
       dob: user.dob,
+      role: isOwnerAdmin ? 'admin' : (user.role || 'user'),
       createdAt: user.createdAt,
     }
   }

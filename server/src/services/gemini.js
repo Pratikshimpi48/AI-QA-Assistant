@@ -26,9 +26,9 @@ function getClient() {
  * @param {string|null} fileName
  * @returns {Promise<{ testCases: Array, model: string, provider: string }>}
  */
-async function generateWithGemini(requirements, fileName = null) {
+async function generateWithGemini(requirements, fileName = null, template = null) {
   const genAI = getClient()
-  const { systemPrompt, userMessage } = buildPrompt(requirements, fileName)
+  const { systemPrompt, userMessage } = buildPrompt(requirements, fileName, template)
 
   // gemini-flash-latest is the active free-tier endpoint model
   const model = genAI.getGenerativeModel({

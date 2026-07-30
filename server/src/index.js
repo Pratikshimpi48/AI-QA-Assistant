@@ -12,6 +12,8 @@ const historyRouter       = require('./routes/history')
 const bugReportRouter     = require('./routes/bugReport')
 const jiraRouter          = require('./routes/jira')
 const notificationsRouter = require('./routes/notifications')
+const templatesRouter     = require('./routes/templates')
+const adminRouter         = require('./routes/admin')
 const jiraPoller          = require('./services/jiraPoller')
 
 const app = express()
@@ -34,6 +36,8 @@ app.use('/api/history',        historyRouter)
 app.use('/api/bug-report',     bugReportRouter)
 app.use('/api/jira',           jiraRouter)
 app.use('/api/notifications',  notificationsRouter)
+app.use('/api/templates',      templatesRouter)
+app.use('/api/admin',          adminRouter)
 
 /* ── 404 handler ────────────────────────────────────── */
 app.use((req, res) => {

@@ -170,4 +170,31 @@ export async function markAllNotificationsAsRead() {
   return data
 }
 
+/* ── Template APIs ─────────────────────────────────────── */
+export async function getTemplates(type = null) {
+  const { data } = await api.get('/templates', { params: type ? { type } : {} })
+  return data
+}
+
+export async function createTemplate(templateData) {
+  const { data } = await api.post('/templates', templateData)
+  return data
+}
+
+export async function deleteTemplate(id) {
+  const { data } = await api.delete(`/templates/${id}`)
+  return data
+}
+
+/* ── Admin User Access APIs ────────────────────────────── */
+export async function getAdminUsers() {
+  const { data } = await api.get('/admin/users')
+  return data
+}
+
+export async function updateUserRole(userId, role) {
+  const { data } = await api.put(`/admin/users/${userId}/role`, { role })
+  return data
+}
+
 export default api

@@ -2,6 +2,7 @@
 
 const { generateWithGemini } = require('./gemini')
 const { generateWithGroq }   = require('./groq')
+const { TemplateModel }      = require('../models/Template')
 
 /**
  * Provider identifiers accepted in the API request body.
@@ -58,12 +59,19 @@ function resolveProvider(requestedProvider) {
  * }} options
  * @returns {Promise<{ testCases: Array, model: string, provider: string, meta: object }>}
  */
-async function generate({ requirements, fileName, fileContent, provider, model }) {
+async function generate({ requirements, fileName, fileContent, provider, model, templateId }) {
   // Combine text input + file content
   const fullText = [requirements, fileContent].filter(Boolean).join('\n\n---\n\n')
 
   if (!fullText.trim()) {
     throw Object.assign(new Error('No content provided to generate test cases from.'), { status: 400 })
+  }
+
+  let template = null
+  if (templateId) {
+    try {
+      template = await TemplateModel.findById(templateId)
+    } catch (_e) { /* ignore */ }
   }
 
   const chosenProvider = resolveProvider(provider)
@@ -72,9 +80,9 @@ async function generate({ requirements, fileName, fileContent, provider, model }
     let result
 
     if (chosenProvider === PROVIDERS.GEMINI) {
-      result = await generateWithGemini(fullText, fileName)
+      result = await generateWithGemini(fullText, fileName, template)
     } else {
-      result = await generateWithGroq(fullText, fileName, model)
+      result = await generateWithGroq(fullText, fileName, model, template)
     }
 
     return {
