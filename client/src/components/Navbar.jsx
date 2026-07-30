@@ -9,7 +9,7 @@ const NAV_LINKS = [
     to:   '/dashboard',
     label: 'Dashboard',
     icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
         <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
       </svg>
@@ -20,7 +20,7 @@ const NAV_LINKS = [
     to:   '/',
     label: 'Test Case Generator',
     icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     ),
@@ -30,7 +30,7 @@ const NAV_LINKS = [
     to:   '/bug-report',
     label: 'Bug Generator',
     icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M8 6l4-4 4 4" /><path d="M12 2v8" />
         <path d="M20 13v1a8 8 0 01-16 0v-1" />
         <path d="M4 10h16" />
@@ -42,7 +42,7 @@ const NAV_LINKS = [
     to:   '/history',
     label: 'History',
     icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
       </svg>
     ),
@@ -53,15 +53,11 @@ const NAV_LINKS = [
     label: 'Jira Watchlist',
     authOnly: true,
     icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/>
         <path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
         <path d="M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S8 21.33 8 20.5v-5c0-.83.67-1.5 1.5-1.5z"/>
         <path d="M3.5 14H5v1.5c0 .83-.67 1.5-1.5 1.5S2 16.33 2 15.5 2.67 14 3.5 14z"/>
-        <path d="M14 14.5c0-.83.67-1.5 1.5-1.5h5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-5c-.83 0-1.5-.67-1.5-1.5z"/>
-        <path d="M15.5 19H14v1.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5-.67-1.5-1.5-1.5z"/>
-        <path d="M10 9.5C10 8.67 9.33 8 8.5 8h-5C2.67 8 2 8.67 2 9.5S2.67 11 3.5 11h5c.83 0 1.5-.67 1.5-1.5z"/>
-        <path d="M8.5 5H10V3.5C10 2.67 9.33 2 8.5 2S7 2.67 7 3.5 7.67 5 8.5 5z"/>
       </svg>
     ),
   },
@@ -70,7 +66,7 @@ const NAV_LINKS = [
     to:   '/settings',
     label: 'Settings',
     icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <circle cx="12" cy="12" r="3" />
         <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
       </svg>
@@ -94,12 +90,12 @@ export default function Navbar() {
 
   const headerStyle = {
     position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-    background: 'rgba(10, 13, 20, 0.88)',
+    background: 'rgba(10, 13, 20, 0.92)',
     backdropFilter: 'blur(20px)',
     WebkitBackdropFilter: 'blur(20px)',
-    borderBottom: '1px solid rgba(255,255,255,0.07)',
-    transition: 'box-shadow 0.3s',
-    boxShadow: scrolled ? '0 8px 40px rgba(0,0,0,0.55)' : 'none',
+    borderBottom: '1px solid rgba(255,255,255,0.08)',
+    transition: 'all 0.3s ease',
+    boxShadow: scrolled ? '0 10px 30px rgba(0,0,0,0.6)' : 'none',
   }
 
   const getInitials = (name) => {
@@ -111,43 +107,49 @@ export default function Navbar() {
     <header style={headerStyle}>
       <nav
         style={{
-          width: '100%', maxWidth: '1200px', margin: '0 auto',
-          padding: '0 1.5rem', height: '4rem',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          width: '100%',
+          maxWidth: '100%',
+          margin: 0,
+          padding: '0 2rem',
+          height: '4.25rem',
+          display: 'flex',
+          alignItems: 'center',
+          justify: 'space-between',
           boxSizing: 'border-box',
         }}
       >
-        {/* Logo */}
-        <Link to="/" id="nav-logo" style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', textDecoration: 'none', flexShrink: 0 }}>
+        {/* Far Left: Logo & Brand Name */}
+        <Link to="/" id="nav-logo" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none', flexShrink: 0 }}>
           <div
             style={{
-              width: 36, height: 36, borderRadius: '0.625rem',
+              width: 38, height: 38, borderRadius: '0.65rem',
               background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
-              boxShadow: '0 0 16px rgba(99,102,241,0.45)',
+              boxShadow: '0 0 18px rgba(99,102,241,0.45)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
             }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
           <div>
             <span style={{
-              fontSize: '0.975rem', fontWeight: 700, letterSpacing: '-0.01em',
-              background: 'linear-gradient(90deg, #f1f5f9 0%, #c7d2fe 100%)',
+              fontSize: '1rem', fontWeight: 800, letterSpacing: '-0.01em',
+              background: 'linear-gradient(90deg, #ffffff 0%, #c7d2fe 100%)',
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-              display: 'block', lineHeight: 1.1,
+              display: 'block', lineHeight: 1.1, whiteSpace: 'nowrap',
             }}>
               AI QA Assistant
             </span>
-            <span style={{ fontSize: '0.65rem', color: '#475569', letterSpacing: '0.05em', fontWeight: 500 }}>
+            <span style={{ fontSize: '0.65rem', color: '#64748b', letterSpacing: '0.04em', fontWeight: 600, display: 'block', marginTop: 2, whiteSpace: 'nowrap' }}>
               Powered by Gemini & Groq
             </span>
           </div>
         </Link>
 
-        {/* Desktop Nav Links */}
-        <div id="nav-desktop-links" className="nav-desktop" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+        {/* Center: Spacious Desktop Nav Links */}
+        <div id="nav-desktop-links" className="nav-desktop" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', margin: '0 auto' }}>
           {NAV_LINKS.filter(link => !link.authOnly || isAuthenticated).map((link) => (
             <NavLink
               key={link.id}
@@ -155,56 +157,77 @@ export default function Navbar() {
               to={link.to}
               end={link.to === '/'}
               style={({ isActive }) => ({
-                display: 'flex', alignItems: 'center', gap: '0.4rem',
-                padding: '0.45rem 0.75rem', borderRadius: '0.5rem',
-                fontSize: '0.8rem', fontWeight: isActive ? 600 : 500,
+                display: 'flex', alignItems: 'center', gap: '0.45rem',
+                padding: '0.5rem 0.85rem', borderRadius: '0.6rem',
+                fontSize: '0.825rem', fontWeight: isActive ? 700 : 500,
                 textDecoration: 'none',
                 color: isActive ? '#818cf8' : '#94a3b8',
-                background: isActive ? 'rgba(99,102,241,0.12)' : 'transparent',
-                border: isActive ? '1px solid rgba(99,102,241,0.25)' : '1px solid transparent',
-                transition: 'all 0.18s', whiteSpace: 'nowrap',
+                background: isActive ? 'rgba(99,102,241,0.14)' : 'transparent',
+                border: isActive ? '1px solid rgba(99,102,241,0.3)' : '1px solid transparent',
+                transition: 'all 0.2s ease', whiteSpace: 'nowrap',
               })}
             >
-              <span style={{ opacity: 0.8, flexShrink: 0 }}>{link.icon}</span>
+              <span style={{ opacity: 0.85, flexShrink: 0 }}>{link.icon}</span>
               {link.label}
             </NavLink>
           ))}
         </div>
 
-        {/* Auth Action Buttons / User Menu */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        {/* Far Right: User Profile & Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
           {isAuthenticated ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <NotificationBell />
-              <Link to="/profile" title="View & Edit Profile" style={{ textDecoration: 'none' }}>
+
+              {/* User Avatar Pill */}
+              <Link to="/profile" title="View Profile & Settings" style={{ textDecoration: 'none' }}>
                 <div style={{
-                  display: 'flex', alignItems: 'center', gap: '0.5rem',
-                  padding: '0.35rem 0.75rem', borderRadius: '9999px',
-                  background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)',
+                  display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                  padding: '0.35rem 0.85rem 0.35rem 0.4rem', borderRadius: '9999px',
+                  background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.3)',
                   color: '#ffffff', fontSize: '0.8rem', fontWeight: 600,
-                  cursor: 'pointer', transition: 'all 0.2s',
+                  cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s',
                 }}>
                   <div style={{
-                    width: 24, height: 24, borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #6366f1, #06b6d4)',
+                    width: 26, height: 26, borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '0.7rem', fontWeight: 800,
+                    fontSize: '0.7rem', fontWeight: 800, color: '#fff',
+                    boxShadow: '0 0 10px rgba(99,102,241,0.4)',
                   }}>
                     {getInitials(user?.name)}
                   </div>
                   <span>{user?.name?.split(' ')[0]}</span>
                 </div>
               </Link>
+
+              {/* Sleek Log Out Button */}
               <button
+                id="nav-logout-btn"
                 onClick={logout}
+                title="Log Out"
                 style={{
-                  padding: '0.45rem 0.85rem', borderRadius: '0.5rem',
-                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                  color: '#94a3b8', fontSize: '0.8rem', fontWeight: 500, cursor: 'pointer',
-                  transition: 'all 0.2s',
+                  display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                  padding: '0.45rem 0.9rem', borderRadius: '0.5rem',
+                  background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)',
+                  color: '#f87171', fontSize: '0.8rem', fontWeight: 600,
+                  cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'rgba(239,68,68,0.2)'
+                  e.currentTarget.style.borderColor = 'rgba(239,68,68,0.4)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'rgba(239,68,68,0.1)'
+                  e.currentTarget.style.borderColor = 'rgba(239,68,68,0.25)'
                 }}
               >
-                Log Out
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+                <span>Log Out</span>
               </button>
             </div>
           ) : (
@@ -212,9 +235,10 @@ export default function Navbar() {
               <Link
                 to="/login"
                 style={{
-                  padding: '0.45rem 0.9rem', borderRadius: '0.5rem',
+                  padding: '0.45rem 0.95rem', borderRadius: '0.5rem',
                   color: '#c7d2fe', fontSize: '0.85rem', fontWeight: 600, textDecoration: 'none',
                   border: '1px solid rgba(99,102,241,0.25)', background: 'rgba(99,102,241,0.08)',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 Log In
@@ -222,10 +246,11 @@ export default function Navbar() {
               <Link
                 to="/register"
                 style={{
-                  padding: '0.45rem 0.9rem', borderRadius: '0.5rem',
+                  padding: '0.45rem 0.95rem', borderRadius: '0.5rem',
                   color: '#ffffff', fontSize: '0.85rem', fontWeight: 600, textDecoration: 'none',
                   background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
                   boxShadow: '0 2px 10px rgba(99,102,241,0.4)',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 Register
@@ -299,7 +324,7 @@ export default function Navbar() {
       </div>
 
       <style>{`
-        @media (max-width: 860px) {
+        @media (max-width: 1024px) {
           .nav-desktop { display: none !important; }
           .nav-hamburger { display: flex !important; }
         }
