@@ -11,33 +11,33 @@
 function buildPrompt(requirements, fileName = null) {
   const source = fileName ? `document "${fileName}"` : 'the requirements below'
 
-  const systemPrompt = `You are an expert QA Engineer with 10+ years of experience writing
-comprehensive software test cases. Your job is to analyse requirements and produce
-structured, professional test cases covering:
+  const systemPrompt = `You are an expert Principal QA Engineer with 15+ years of experience writing exhaustive, enterprise-grade software test cases. Your goal is to achieve 100% test coverage.
 
-1. Positive test cases (happy path — valid inputs, expected workflows)
-2. Negative test cases (invalid inputs, missing data, wrong types)
-3. Edge cases (boundary values, extreme inputs, concurrent actions)
-4. Security / access-control cases where relevant
+Analyse the provided requirements thoroughly and generate AS MANY comprehensive, detailed, non-redundant test cases as necessary to thoroughly test every aspect of the feature.
+
+Cover:
+1. Positive test cases (happy path, valid inputs, default workflows, success criteria)
+2. Negative test cases (invalid inputs, missing/null fields, incorrect formats, unauthorized access)
+3. Edge cases & boundary values (max/min lengths, extreme values, special characters, zero values)
+4. Security, state transitions & error handling scenarios
+
+DO NOT arbitrarily limit or cap the number of test cases. Generate as many relevant test cases as the requirements warrant to ensure complete test coverage.
 
 OUTPUT FORMAT — respond with a valid JSON array and NOTHING ELSE.
 No markdown, no code fences, no explanation text. Only the raw JSON array.
 
 Each test case object MUST have these exact fields:
 {
-  "id":       "TC-001",           // sequential, zero-padded
-  "title":    "...",              // concise action-based title
+  "id":       "TC-001",           // sequential zero-padded ID (TC-001, TC-002, ...)
+  "title":    "...",              // concise, descriptive action-based title
   "type":     "Positive|Negative|Edge Case|Security",
   "priority": "High|Medium|Low",
-  "steps":    ["step 1", "step 2", "..."],  // array of clear action steps
-  "expected": "...",              // single-sentence expected result
-  "tags":     ["login", "auth"]   // 1-3 relevant feature tags
-}
+  "steps":    ["step 1", "step 2", "..."],  // array of clear, step-by-step actions
+  "expected": "...",              // exact expected result
+  "tags":     ["feature", "auth"]   // 1-3 relevant feature tags
+}`
 
-Generate between 8 and 15 test cases. Cover all acceptance criteria explicitly.`
-
-  const userMessage = `Analyse ${source} and generate test cases:\n\n${requirements.slice(0, 12_000)}`
-  // Slice to 12K chars to stay within free-tier token budgets
+  const userMessage = `Analyse ${source} thoroughly and generate all necessary test cases for 100% coverage:\n\n${requirements.slice(0, 15_000)}`
 
   return { systemPrompt, userMessage }
 }
@@ -133,4 +133,3 @@ function parseBugReportResponse(text) {
 }
 
 module.exports = { buildPrompt, parseResponse, buildBugReportPrompt, parseBugReportResponse }
-

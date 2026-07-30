@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { getDashboardStats } from '../services/api'
+import { getDashboardStats, getNotifications } from '../services/api'
 import { getGuestStats } from '../utils/guestSession'
 import Navbar from '../components/Navbar'
 
@@ -48,6 +48,7 @@ export default function DashboardPage() {
     recentActivity: [],
   })
   const [loading, setLoading] = useState(true)
+  const [notifications, setNotifications] = useState([])
 
   useEffect(() => {
     async function loadStats() {
@@ -68,6 +69,13 @@ export default function DashboardPage() {
       }
     }
     loadStats()
+  }, [isAuthenticated])
+
+  useEffect(() => {
+    if (!isAuthenticated) return
+    getNotifications()
+      .then(res => setNotifications((res.notifications || []).filter(n => !n.read).slice(0, 3)))
+      .catch(() => {})
   }, [isAuthenticated])
 
   const getInitials = (name) => {
@@ -390,6 +398,50 @@ export default function DashboardPage() {
                     Export your test cases to CSV, copy Jira bug tickets, and review your private history.
                   </p>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Recent Notifications Section */}
+          {isAuthenticated && notifications.length > 0 && (
+            <div style={{ ...S.card, marginTop: '2rem', border: '1px solid rgba(99,102,241,0.2)', background: 'rgba(99,102,241,0.04)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+                <h2 style={{ ...S.sectionTitle, marginBottom: 0 }}>
+                  🔔 Recent Notifications
+                  <span style={{
+                    padding: '0.15rem 0.5rem', borderRadius: '9999px',
+                    background: 'rgba(239,68,68,0.2)', color: '#f87171',
+                    fontSize: '0.7rem', fontWeight: 700,
+                  }}>{notifications.length} unread</span>
+                </h2>
+                <Link to="/notifications" style={{ fontSize: '0.8rem', color: '#6366f1', textDecoration: 'none', fontWeight: 600 }}>
+                  View All →
+                </Link>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                {notifications.map(notif => (
+                  <Link
+                    key={notif._id || notif.id}
+                    to="/notifications"
+                    style={{
+                      display: 'flex', alignItems: 'flex-start', gap: '0.875rem',
+                      padding: '0.875rem 1rem', borderRadius: '0.75rem',
+                      background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.18)',
+                      borderLeft: '3px solid #6366f1', textDecoration: 'none',
+                      transition: 'background 0.15s',
+                    }}
+                  >
+                    <span style={{ fontSize: '1.1rem', flexShrink: 0, marginTop: '0.05rem' }}>✅</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {notif.title}
+                      </p>
+                      {notif.jiraTicketId && (
+                        <p style={{ margin: '0.2rem 0 0', fontSize: '0.75rem', color: '#6366f1' }}>🎫 {notif.jiraTicketId}</p>
+                      )}
+                    </div>
+                  </Link>
+                ))}
               </div>
             </div>
           )}

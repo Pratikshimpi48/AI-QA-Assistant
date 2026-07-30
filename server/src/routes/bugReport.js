@@ -5,6 +5,7 @@ const router          = express.Router()
 const { optionalAuth, authenticateToken } = require('../middleware/auth')
 const HistoryModel    = require('../models/History')
 const { buildBugReportPrompt, parseBugReportResponse } = require('../services/promptBuilder')
+const { detectDuplicates } = require('../services/duplicateDetection')
 const { GoogleGenerativeAI } = require('@google/generative-ai')
 const Groq = require('groq-sdk')
 
@@ -97,6 +98,42 @@ router.post('/generate', optionalAuth, async (req, res, next) => {
         generatedAt: new Date().toISOString(),
         saved:       !!historyRecord,
       },
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
+/**
+ * POST /api/bug-report/check-duplicates
+ * Auth required — compares new bug details against user's existing bug history using AI
+ */
+router.post('/check-duplicates', authenticateToken, async (req, res, next) => {
+  try {
+    const { title, description, stepsToReproduce, expectedBehavior, actualBehavior } = req.body
+
+    if (!title && !description) {
+      return res.status(400).json({
+        status:  'error',
+        message: 'At least a title or description is required to check for duplicates.',
+      })
+    }
+
+    // Fetch user's existing bug reports from history
+    const allHistory   = await HistoryModel.findByUserId(req.user.id)
+    const existingBugs = allHistory.filter(h => h.type === 'bug-report')
+
+    if (existingBugs.length === 0) {
+      return res.json({ status: 'ok', duplicates: [], message: 'No existing bug reports to compare against.' })
+    }
+
+    const newBug     = { title, description, stepsToReproduce, expectedBehavior, actualBehavior }
+    const duplicates = await detectDuplicates(newBug, existingBugs)
+
+    return res.json({
+      status:       'ok',
+      duplicates,
+      totalChecked: existingBugs.length,
     })
   } catch (err) {
     next(err)

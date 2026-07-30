@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { generateBugReport } from '../services/api'
+import { generateBugReport, checkDuplicateBugs } from '../services/api'
 import Navbar from '../components/Navbar'
 import ExportButton from '../components/ExportButton'
+import DuplicateDetectionModal from '../components/DuplicateDetectionModal'
 import { exportBugReport } from '../utils/exportUtils'
 import { useAuth } from '../context/AuthContext'
 import { addGuestHistoryItem } from '../utils/guestSession'
@@ -30,12 +31,18 @@ export default function BugReportPage() {
   const [error, setError]                       = useState('')
   const [copied, setCopied]                     = useState(false)
 
+  // Duplicate detection state
+  const [showDupModal, setShowDupModal]     = useState(false)
+  const [dupLoading, setDupLoading]         = useState(false)
+  const [duplicates, setDuplicates]         = useState([])
+  const [totalChecked, setTotalChecked]     = useState(0)
+  const [pendingSubmit, setPendingSubmit]   = useState(false)
+
   const { isAuthenticated } = useAuth()
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!issueDescription.trim()) return
-
+  /** Actually generate the bug report (called after duplicate check passes / ignored) */
+  const doGenerate = async () => {
+    setShowDupModal(false)
     setError('')
     setBugReport(null)
     setLoading(true)
@@ -56,6 +63,46 @@ export default function BugReportPage() {
       setError(err.message || 'Failed to generate bug report. Please try again.')
     } finally {
       setLoading(false)
+      setPendingSubmit(false)
+    }
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!issueDescription.trim()) return
+
+    // For authenticated users: run duplicate check first
+    if (isAuthenticated) {
+      setShowDupModal(true)
+      setDupLoading(true)
+      setDuplicates([])
+      setTotalChecked(0)
+      setPendingSubmit(true)
+
+      try {
+        const res = await checkDuplicateBugs({
+          title:       '',
+          description: issueDescription.trim(),
+        })
+        setDuplicates(res.duplicates || [])
+        setTotalChecked(res.totalChecked || 0)
+        setDupLoading(false)
+
+        // If no duplicates found, auto-proceed
+        if ((res.duplicates || []).length === 0) {
+          // Show the "no duplicates" state briefly then auto-proceed
+          setTimeout(() => doGenerate(), 1200)
+        }
+      } catch {
+        // If duplicate check fails, just proceed with generation
+        setShowDupModal(false)
+        setDupLoading(false)
+        setPendingSubmit(false)
+        doGenerate()
+      }
+    } else {
+      // Guest user — skip duplicate check
+      doGenerate()
     }
   }
 
@@ -97,6 +144,18 @@ ${bugReport.workaround || 'None'}
           Describe the issue you encountered, paste error logs, or user feedback. AI will convert it into a structured, Jira-ready bug report and save it to your history.
         </p>
 
+        {/* Auth info banner */}
+        {isAuthenticated && (
+          <div style={{
+            marginBottom: '1.5rem', padding: '0.75rem 1rem', borderRadius: '0.625rem',
+            background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)',
+            display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', color: '#818cf8',
+          }}>
+            <span>🔍</span>
+            <span>AI Duplicate Detection is active — your report will be automatically checked against your existing bug reports before saving.</span>
+          </div>
+        )}
+
         {/* Input Form */}
         <div style={S.card}>
           <form onSubmit={handleSubmit}>
@@ -128,32 +187,38 @@ ${bugReport.workaround || 'None'}
               </div>
             )}
 
-            <button
-              id="generate-bug-report-btn"
-              type="submit"
-              disabled={loading || !issueDescription.trim()}
-              style={{
-                marginTop: '1.25rem', padding: '0.85rem 1.75rem', borderRadius: '0.625rem',
-                background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                color: '#ffffff', fontSize: '0.95rem', fontWeight: 700,
-                border: 'none', cursor: (loading || !issueDescription.trim()) ? 'not-allowed' : 'pointer',
-                boxShadow: '0 4px 14px rgba(239,68,68,0.4)',
-                opacity: (loading || !issueDescription.trim()) ? 0.6 : 1, transition: 'all 0.2s',
-                display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-              }}
-            >
-              {loading ? (
-                <>
-                  <svg className="spin-slow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <circle cx="12" cy="12" r="10" strokeOpacity="0.2" />
-                    <path d="M12 2a10 10 0 0 1 10 10" />
-                  </svg>
-                  Generating Report...
-                </>
-              ) : (
-                '🚀 Generate Bug Report'
-              )}
-            </button>
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', flexWrap: 'wrap' }}>
+              <button
+                id="generate-bug-report-btn"
+                type="submit"
+                disabled={loading || !issueDescription.trim() || pendingSubmit}
+                style={{
+                  padding: '0.85rem 1.75rem', borderRadius: '0.625rem',
+                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                  color: '#ffffff', fontSize: '0.95rem', fontWeight: 700,
+                  border: 'none', cursor: (loading || !issueDescription.trim() || pendingSubmit) ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 4px 14px rgba(239,68,68,0.4)',
+                  opacity: (loading || !issueDescription.trim() || pendingSubmit) ? 0.6 : 1, transition: 'all 0.2s',
+                  display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                }}
+              >
+                {loading ? (
+                  <>
+                    <svg className="spin-slow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <circle cx="12" cy="12" r="10" strokeOpacity="0.2" />
+                      <path d="M12 2a10 10 0 0 1 10 10" />
+                    </svg>
+                    Generating Report...
+                  </>
+                ) : pendingSubmit ? (
+                  <>🔍 Checking for Duplicates...</>
+                ) : isAuthenticated ? (
+                  '🔍 Check Duplicates & Generate'
+                ) : (
+                  '🚀 Generate Bug Report'
+                )}
+              </button>
+            </div>
           </form>
         </div>
 
@@ -243,6 +308,17 @@ ${bugReport.workaround || 'None'}
           </div>
         )}
       </div>
+
+      {/* Duplicate Detection Modal */}
+      {showDupModal && (
+        <DuplicateDetectionModal
+          duplicates={duplicates}
+          totalChecked={totalChecked}
+          loading={dupLoading}
+          onIgnore={doGenerate}
+          onCancel={() => { setShowDupModal(false); setPendingSubmit(false); setDupLoading(false) }}
+        />
+      )}
     </div>
   )
 }

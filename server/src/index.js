@@ -5,18 +5,21 @@ const express   = require('express')
 const cors      = require('cors')
 const { connectDB } = require('./config/db')
 
-const healthRouter    = require('./routes/health')
-const generateRouter  = require('./routes/generate')
-const authRouter      = require('./routes/auth')
-const historyRouter   = require('./routes/history')
-const bugReportRouter = require('./routes/bugReport')
+const healthRouter        = require('./routes/health')
+const generateRouter      = require('./routes/generate')
+const authRouter          = require('./routes/auth')
+const historyRouter       = require('./routes/history')
+const bugReportRouter     = require('./routes/bugReport')
+const jiraRouter          = require('./routes/jira')
+const notificationsRouter = require('./routes/notifications')
+const jiraPoller          = require('./services/jiraPoller')
 
 const app = express()
 
 /* ── Middleware ─────────────────────────────────────── */
 app.use(cors({
   origin:      env.CLIENT_URL,
-  methods:     ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods:     ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   credentials: true,
 }))
 
@@ -24,11 +27,13 @@ app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
 
 /* ── Routes ─────────────────────────────────────────── */
-app.use('/api/health',     healthRouter)
-app.use('/api/generate',   generateRouter)
-app.use('/api/auth',       authRouter)
-app.use('/api/history',    historyRouter)
-app.use('/api/bug-report', bugReportRouter)
+app.use('/api/health',         healthRouter)
+app.use('/api/generate',       generateRouter)
+app.use('/api/auth',           authRouter)
+app.use('/api/history',        historyRouter)
+app.use('/api/bug-report',     bugReportRouter)
+app.use('/api/jira',           jiraRouter)
+app.use('/api/notifications',  notificationsRouter)
 
 /* ── 404 handler ────────────────────────────────────── */
 app.use((req, res) => {
@@ -49,6 +54,7 @@ const PORT = Number(env.PORT)
 
 async function startServer() {
   await connectDB()
+  jiraPoller.startPolling()
   app.listen(PORT, () => {
     console.log(`\n🚀 AI QA Assistant API`)
     console.log(`   ➜  http://localhost:${PORT}/api/health`)
@@ -57,4 +63,3 @@ async function startServer() {
 }
 
 startServer()
-

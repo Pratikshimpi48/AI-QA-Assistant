@@ -61,23 +61,26 @@ export function deleteGuestHistoryItem(id) {
 
 /**
  * Calculate guest session statistics
- * @returns {{ totalTestRuns: number, totalTestCases: number, totalBugReports: number, hoursSaved: number, recentActivity: Array }}
+ * @returns {{ totalTestRuns: number, totalTestCases: number, totalBugReports: number, hoursSaved: number, tokensUsed: number, recentActivity: Array }}
  */
 export function getGuestStats() {
   const history = getGuestHistory()
 
-  let totalTestRuns  = 0
-  let totalTestCases = 0
+  let totalTestRuns   = 0
+  let totalTestCases  = 0
   let totalBugReports = 0
+  let tokensUsed      = 0
 
   history.forEach((rec) => {
     if (rec.type === 'test-cases') {
       totalTestRuns += 1
       if (Array.isArray(rec.data)) {
         totalTestCases += rec.data.length
+        tokensUsed += Math.max(420, rec.data.length * 130 + 280)
       }
     } else if (rec.type === 'bug-report') {
       totalBugReports += 1
+      tokensUsed += 480
     }
   })
 
@@ -88,6 +91,7 @@ export function getGuestStats() {
     totalTestCases,
     totalBugReports,
     hoursSaved,
+    tokensUsed,
     recentActivity: history.slice(0, 5),
   }
 }
