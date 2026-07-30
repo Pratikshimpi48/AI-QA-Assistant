@@ -50,12 +50,50 @@ const MongoTemplate = mongoose.model('Template', templateSchema)
 // Rich Industry Standard Free Preset Templates
 const PRESET_TEMPLATES = [
   {
+    id: 'tmpl_spreadsheet_matrix',
+    name: 'Enterprise QA Excel Test Matrix (Blue Header & Status Dropdowns)',
+    type: 'test-cases',
+    category: 'preset',
+    description: 'Exact enterprise QA spreadsheet grid layout featuring Section Headers, Pre-conditions, Step Descriptions, Expected vs Actual Results, Test Data, Status dropdowns, Bug IDs, and QA Comments.',
+    isDefault: true,
+    createdBy: 'QA Enterprise Standard',
+    createdAt: new Date().toISOString(),
+    structure: {
+      fields: ['testCaseId', 'scenario', 'stepDescription', 'expectedResult', 'actualResult', 'testData', 'status', 'bugId', 'qaComments'],
+      format: 'Enterprise QA Spreadsheet Grid',
+    },
+    samplePreview: [
+      {
+        testCaseId: 'TC_BAP_001',
+        scenario: 'Verify the contents of the Sign In section',
+        stepDescription: '1. Check the main heading text.\n2. Check the active and adjacent top tab text.\n3. Check the placeholders for input fields.\n4. Check the text on the buttons.\n5. Check the password recovery link text.',
+        expectedResult: '1. Headings & Tabs: Main heading "SIGN IN FOR A FASTER CHECKOUT".\n2. Input Placeholders: "Email address" and "Password".\n3. Buttons: Blue button "SIGN IN", Purple button "CHECKOUT AS A GUEST".\n4. Link Text: "Forgot your password?".',
+        actualResult: 'User is able to see all expected headings, placeholders, buttons, and recovery link matching design spec.',
+        testData: 'N/A',
+        status: 'Passed',
+        bugId: '',
+        qaComments: 'Verified on Chrome 124 staging build.',
+      },
+      {
+        testCaseId: 'TC_BAP_002',
+        scenario: 'Verify the user is able to log in when entering valid credentials',
+        stepDescription: '1. Enter valid email address and password.\n2. Click on the blue "SIGN IN" button.',
+        expectedResult: 'On successful login, User should be logged in and redirected to the home page or dashboard.',
+        actualResult: 'On successful login, User is logged in and redirected to dashboard.',
+        testData: 'Email: test.user@example.com\nPassword: Testuser@1234',
+        status: 'Passed',
+        bugId: '',
+        qaComments: '',
+      },
+    ],
+  },
+  {
     id: 'tmpl_std_tc',
     name: 'Standard Enterprise QA Suite',
     type: 'test-cases',
     category: 'preset',
     description: 'Comprehensive QA test cases with ID, Title, Category, Priority, Step-by-Step execution, and Expected Results.',
-    isDefault: true,
+    isDefault: false,
     createdBy: 'System',
     createdAt: new Date().toISOString(),
     structure: {

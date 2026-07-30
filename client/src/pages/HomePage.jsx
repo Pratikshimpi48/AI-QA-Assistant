@@ -3,6 +3,7 @@ import Navbar from '../components/Navbar'
 import { generateTestCases, getProviders, getTemplates } from '../services/api'
 import ExportButton from '../components/ExportButton'
 import TemplatePreviewModal from '../components/TemplatePreviewModal'
+import ExcelMatrixTable from '../components/ExcelMatrixTable'
 import { exportTestCases } from '../utils/exportUtils'
 import { useAuth } from '../context/AuthContext'
 import { addGuestHistoryItem } from '../utils/guestSession'
@@ -95,6 +96,7 @@ export default function HomePage() {
   const [templatesList,      setTemplatesList]      = useState([])
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
   const [previewTemplate,    setPreviewTemplate]    = useState(null)
+  const [viewMode,           setViewMode]           = useState('excel')   // 'excel'|'cards'
   const fileInputRef = useRef(null)
 
   /* Fetch which providers are configured on the backend */
@@ -582,10 +584,10 @@ export default function HomePage() {
             {/* ── Test Case Results ─────────────────────────── */}
             {result && result.testCases && result.testCases.length > 0 && (
               <div id="result-section" style={{ marginTop: '2rem' }}>
-                {/* Header */}
+                {/* Header Toolbar */}
                 <div style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem',
+                  marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e' }} />
@@ -593,7 +595,34 @@ export default function HomePage() {
                       {result.testCases.length} Test Cases Generated
                     </h3>
                   </div>
+
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    {/* View Mode Toggle Switch */}
+                    <div style={{ display: 'flex', gap: '0.25rem', background: 'rgba(255,255,255,0.05)', padding: '0.25rem', borderRadius: '0.5rem', border: '1px solid var(--color-border)' }}>
+                      <button
+                        onClick={() => setViewMode('excel')}
+                        style={{
+                          padding: '0.3rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.75rem', fontWeight: 700,
+                          border: 'none', cursor: 'pointer',
+                          background: viewMode === 'excel' ? '#0033cc' : 'transparent',
+                          color: viewMode === 'excel' ? '#ffffff' : '#94a3b8',
+                        }}
+                      >
+                        📊 Enterprise Matrix
+                      </button>
+                      <button
+                        onClick={() => setViewMode('cards')}
+                        style={{
+                          padding: '0.3rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.75rem', fontWeight: 700,
+                          border: 'none', cursor: 'pointer',
+                          background: viewMode === 'cards' ? 'rgba(99,102,241,0.2)' : 'transparent',
+                          color: viewMode === 'cards' ? '#818cf8' : '#94a3b8',
+                        }}
+                      >
+                        🃏 Card Grid
+                      </button>
+                    </div>
+
                     <span style={{
                       fontSize: '0.7rem', padding: '0.2rem 0.6rem', borderRadius: '9999px',
                       background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)',
@@ -601,9 +630,7 @@ export default function HomePage() {
                     }}>
                       {result.meta?.provider ?? 'AI'}
                     </span>
-                    <span style={{ fontSize: '0.7rem', color: '#475569' }}>
-                      {result.meta?.model}
-                    </span>
+
                     <ExportButton
                       label="Export Test Cases"
                       onExport={(format) => exportTestCases(result.testCases, format, 'Generated_Test_Cases')}
@@ -611,8 +638,14 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* Test Case Cards */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                {/* Render Selected View Mode */}
+                {viewMode === 'excel' ? (
+                  <ExcelMatrixTable
+                    testCases={result.testCases}
+                    sectionName={result.meta?.fileName ? result.meta.fileName.toUpperCase() : 'FEATURE TEST MATRIX'}
+                  />
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
                   {result.testCases.map((tc, i) => {
                     const pColor = PRIORITY_COLORS[tc.priority] ?? PRIORITY_COLORS.Medium
                     const tColor = TYPE_COLORS[tc.type] ?? '#94a3b8'
@@ -691,6 +724,7 @@ export default function HomePage() {
                     )
                   })}
                 </div>
+                )}
 
                 {/* Meta footer */}
                 <p style={{ fontSize: '0.7rem', color: '#334155', textAlign: 'center', marginTop: '1rem' }}>

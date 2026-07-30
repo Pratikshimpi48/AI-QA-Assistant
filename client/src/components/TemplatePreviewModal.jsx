@@ -1,8 +1,11 @@
 import { useState } from 'react'
+import ExcelMatrixTable from './ExcelMatrixTable'
 
 export default function TemplatePreviewModal({ template, onClose }) {
   const [copied, setCopied] = useState(false)
   if (!template) return null
+
+  const isExcelMatrix = template.id === 'tmpl_spreadsheet_matrix' || template.name?.toLowerCase().includes('excel') || template.name?.toLowerCase().includes('spreadsheet')
 
   const sampleData = template.samplePreview || (
     template.type === 'test-cases'
@@ -42,24 +45,24 @@ export default function TemplatePreviewModal({ template, onClose }) {
   return (
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      background: 'rgba(0, 0, 0, 0.8)', backdropFilter: 'blur(8px)',
+      background: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(10px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '1.5rem',
     }}>
       <div style={{
         background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-        borderRadius: '1.25rem', padding: '2rem', maxWidth: 720, width: '100%',
+        borderRadius: '1.25rem', padding: '2rem', maxWidth: isExcelMatrix ? 1100 : 760, width: '100%',
         maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 25px 60px rgba(0,0,0,0.9)',
       }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
-              <span style={{ fontSize: '1.4rem' }}>👁️</span>
+              <span style={{ fontSize: '1.4rem' }}>📊</span>
               <span style={{
                 padding: '0.2rem 0.65rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 700,
-                background: template.category === 'preset' ? 'rgba(99,102,241,0.15)' : 'rgba(34,197,94,0.15)',
-                border: template.category === 'preset' ? '1px solid rgba(99,102,241,0.3)' : '1px solid rgba(34,197,94,0.3)',
-                color: template.category === 'preset' ? '#818cf8' : '#4ade80',
+                background: template.category === 'preset' ? 'rgba(0,51,204,0.2)' : 'rgba(34,197,94,0.15)',
+                border: template.category === 'preset' ? '1px solid rgba(0,51,204,0.5)' : '1px solid rgba(34,197,94,0.3)',
+                color: template.category === 'preset' ? '#60a5fa' : '#4ade80',
               }}>
                 {template.category === 'preset' ? `Official Preset — ${template.createdBy}` : 'Custom Organization Template'}
               </span>
@@ -88,14 +91,14 @@ export default function TemplatePreviewModal({ template, onClose }) {
         {/* Required Fields Schema */}
         <div style={{ marginBottom: '1.25rem', padding: '0.85rem 1rem', borderRadius: '0.75rem', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
           <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#818cf8', display: 'block', marginBottom: '0.5rem' }}>
-            📋 Required Field Structure:
+            📋 Required Field Columns & Structure:
           </span>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
             {(template.structure?.fields || []).map((field, idx) => (
               <span key={idx} style={{
                 padding: '0.2rem 0.65rem', borderRadius: '0.375rem',
-                background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)',
-                color: '#c7d2fe', fontSize: '0.775rem', fontFamily: 'monospace', fontWeight: 600,
+                background: 'rgba(0,51,204,0.15)', border: '1px solid rgba(0,51,204,0.3)',
+                color: '#93c5fd', fontSize: '0.775rem', fontFamily: 'monospace', fontWeight: 600,
               }}>
                 {field}
               </span>
@@ -107,7 +110,7 @@ export default function TemplatePreviewModal({ template, onClose }) {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#e2e8f0' }}>
-              ✨ Live Generated Content Format Preview:
+              ✨ Live Template Visual Layout Preview:
             </span>
             <button
               onClick={handleCopy}
@@ -121,14 +124,28 @@ export default function TemplatePreviewModal({ template, onClose }) {
             </button>
           </div>
 
-          <pre style={{
-            background: '#090d16', border: '1px solid var(--color-border)',
-            borderRadius: '0.75rem', padding: '1.25rem', color: '#38bdf8',
-            fontSize: '0.825rem', fontFamily: 'Fira Code, monospace', lineHeight: 1.55,
-            overflowX: 'auto', maxHeight: 320, margin: 0,
-          }}>
-            {formattedJson}
-          </pre>
+          {isExcelMatrix || Array.isArray(sampleData) ? (
+            <div style={{ background: '#ffffff', borderRadius: '0.75rem', padding: '1rem', overflowX: 'auto', border: '1px solid var(--color-border)' }}>
+              <ExcelMatrixTable
+                testCases={Array.isArray(sampleData) ? sampleData : [sampleData]}
+                sectionName="LOGIN PAGE"
+                preconditions={[
+                  '1. Navigate to: https://staging.buyautopartsnow.com',
+                  '2. Click on the "Sign In" button',
+                  '3. Login section got open',
+                ]}
+              />
+            </div>
+          ) : (
+            <pre style={{
+              background: '#090d16', border: '1px solid var(--color-border)',
+              borderRadius: '0.75rem', padding: '1.25rem', color: '#38bdf8',
+              fontSize: '0.825rem', fontFamily: 'Fira Code, monospace', lineHeight: 1.55,
+              overflowX: 'auto', maxHeight: 320, margin: 0,
+            }}>
+              {formattedJson}
+            </pre>
+          )}
         </div>
 
         {/* Action Button */}
@@ -137,7 +154,7 @@ export default function TemplatePreviewModal({ template, onClose }) {
             onClick={onClose}
             style={{
               padding: '0.6rem 1.5rem', borderRadius: '0.625rem',
-              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+              background: 'linear-gradient(135deg, #0033cc 0%, #1d4ed8 100%)',
               color: '#fff', fontSize: '0.875rem', fontWeight: 700, border: 'none', cursor: 'pointer',
             }}
           >
