@@ -51,6 +51,7 @@ const NAV_LINKS = [
     id:   'nav-jira-watchlist',
     to:   '/jira-watchlist',
     label: 'Jira Watchlist',
+    authOnly: true,
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/>
@@ -147,7 +148,7 @@ export default function Navbar() {
 
         {/* Desktop Nav Links */}
         <div id="nav-desktop-links" className="nav-desktop" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-          {NAV_LINKS.map((link) => (
+          {NAV_LINKS.filter(link => !link.authOnly || isAuthenticated).map((link) => (
             <NavLink
               key={link.id}
               id={link.id}
@@ -273,7 +274,7 @@ export default function Navbar() {
         }}
       >
         <div style={{ padding: '0.75rem 1rem 1rem' }}>
-          {NAV_LINKS.map((link) => (
+          {NAV_LINKS.filter(link => !link.authOnly || isAuthenticated).map((link) => (
             <NavLink
               key={`mobile-${link.id}`}
               to={link.to}
