@@ -43,10 +43,20 @@ async function generateWithGemini(requirements, fileName = null) {
 
   try {
     const result = await model.generateContent(userMessage)
-    const text = result.response.text()
+    let text = ''
+    try {
+      text = result.response.text()
+    } catch {
+      // Fallback: extract text directly from candidates parts if response.text() fails
+      const candidate = result.response?.candidates?.[0]
+      const part = candidate?.content?.parts?.find(p => p.text)
+      text = part?.text || ''
+    }
+
     const testCases = parseResponse(text)
 
     if (testCases.length === 0) {
+      console.warn('[Gemini] Response could not be parsed into test cases. Raw preview:', text ? text.slice(0, 300) : '(empty)')
       throw new Error('Gemini returned an empty or unparseable response. Please try again.')
     }
 
