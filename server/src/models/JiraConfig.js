@@ -1,7 +1,7 @@
 'use strict'
 
 const mongoose = require('mongoose')
-const { getIsMongoConnected, memoryStore } = require('../config/db')
+const { getIsMongoConnected, memoryStore, saveDiskStore } = require('../config/db')
 
 const jiraConfigSchema = new mongoose.Schema({
   userId: {
@@ -10,7 +10,7 @@ const jiraConfigSchema = new mongoose.Schema({
     unique:   true,
     index:    true,
   },
-  jiraBaseUrl: { type: String, required: true },  // e.g. https://yourcompany.atlassian.net
+  jiraBaseUrl: { type: String, required: true },
   jiraEmail:   { type: String, required: true },
   jiraApiToken:{ type: String, required: true },
   createdAt:   { type: Date, default: Date.now },
@@ -25,48 +25,77 @@ class JiraConfigModel {
   }
 
   static async findByUserId(userId) {
+    if (!userId) return null
+    let config = null
+
     if (getIsMongoConnected()) {
-      return await MongoJiraConfig.findOne({ userId: String(userId) })
+      try {
+        config = await MongoJiraConfig.findOne({ userId: String(userId) })
+      } catch (err) {
+        console.warn('[JiraConfig] Mongo find error:', err.message)
+      }
     }
-    return memoryStore.jiraConfigs.find(c => String(c.userId) === String(userId)) || null
+
+    if (!config) {
+      config = memoryStore.jiraConfigs.find(c => String(c.userId) === String(userId)) || null
+    }
+
+    return config
   }
 
   static async upsert(userId, { jiraBaseUrl, jiraEmail, jiraApiToken }) {
+    const sUserId = String(userId)
+    let mongoConfig = null
+
     if (getIsMongoConnected()) {
-      return await MongoJiraConfig.findOneAndUpdate(
-        { userId: String(userId) },
-        { jiraBaseUrl, jiraEmail, jiraApiToken, updatedAt: new Date() },
-        { upsert: true, new: true, setDefaultsOnInsert: true },
-      )
-    }
-    // In-memory upsert
-    const idx = memoryStore.jiraConfigs.findIndex(c => String(c.userId) === String(userId))
-    if (idx !== -1) {
-      memoryStore.jiraConfigs[idx] = {
-        ...memoryStore.jiraConfigs[idx],
-        jiraBaseUrl, jiraEmail, jiraApiToken,
-        updatedAt: new Date().toISOString(),
+      try {
+        mongoConfig = await MongoJiraConfig.findOneAndUpdate(
+          { userId: sUserId },
+          { jiraBaseUrl, jiraEmail, jiraApiToken, updatedAt: new Date() },
+          { upsert: true, new: true, setDefaultsOnInsert: true },
+        )
+      } catch (err) {
+        console.warn('[JiraConfig] Mongo upsert error:', err.message)
       }
-      return memoryStore.jiraConfigs[idx]
     }
-    const record = {
-      id: this._genId(), _id: this._genId(),
-      userId: String(userId),
-      jiraBaseUrl, jiraEmail, jiraApiToken,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+
+    // Always keep memoryStore & disk in sync
+    const idx = memoryStore.jiraConfigs.findIndex(c => String(c.userId) === sUserId)
+    const rec = {
+      id:           mongoConfig ? String(mongoConfig._id) : (idx !== -1 ? memoryStore.jiraConfigs[idx].id : this._genId()),
+      _id:          mongoConfig ? String(mongoConfig._id) : (idx !== -1 ? memoryStore.jiraConfigs[idx]._id : this._genId()),
+      userId:       sUserId,
+      jiraBaseUrl,
+      jiraEmail,
+      jiraApiToken,
+      createdAt:    idx !== -1 ? memoryStore.jiraConfigs[idx].createdAt : new Date().toISOString(),
+      updatedAt:    new Date().toISOString(),
     }
-    memoryStore.jiraConfigs.push(record)
-    return record
+
+    if (idx !== -1) {
+      memoryStore.jiraConfigs[idx] = rec
+    } else {
+      memoryStore.jiraConfigs.push(rec)
+    }
+
+    saveDiskStore()
+    return mongoConfig || rec
   }
 
   static async deleteByUserId(userId) {
+    const sUserId = String(userId)
     if (getIsMongoConnected()) {
-      const res = await MongoJiraConfig.deleteOne({ userId: String(userId) })
-      return res.deletedCount > 0
+      try {
+        await MongoJiraConfig.deleteOne({ userId: sUserId })
+      } catch (err) { /* ignore */ }
     }
-    const idx = memoryStore.jiraConfigs.findIndex(c => String(c.userId) === String(userId))
-    if (idx !== -1) { memoryStore.jiraConfigs.splice(idx, 1); return true }
+
+    const idx = memoryStore.jiraConfigs.findIndex(c => String(c.userId) === sUserId)
+    if (idx !== -1) {
+      memoryStore.jiraConfigs.splice(idx, 1)
+      saveDiskStore()
+      return true
+    }
     return false
   }
 

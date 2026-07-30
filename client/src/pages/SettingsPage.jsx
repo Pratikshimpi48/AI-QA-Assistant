@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import Navbar from '../components/Navbar'
 import { useAuth } from '../context/AuthContext'
-import { getJiraConfig, saveJiraConfig, deleteJiraConfig } from '../services/api'
+import { getJiraConfig, saveJiraConfig, deleteJiraConfig, getDashboardStats } from '../services/api'
+import { getGuestStats } from '../utils/guestSession'
 
 const S = {
   page:     { background: 'var(--color-bg)', minHeight: '100vh' },
@@ -36,60 +37,46 @@ const S = {
   },
 }
 
-const staticGroups = [
-  {
-    group: 'AI Model',
-    items: [
-      { id: 'setting-model',   label: 'Primary Model',   value: 'Gemini 2.0 Flash' },
-      { id: 'setting-fallback',label: 'Fallback Model',  value: 'Groq Llama 3.3 70B' },
-      { id: 'setting-tokens',  label: 'Max Tokens',      value: '4096' },
-      { id: 'setting-temp',    label: 'Temperature',     value: '0.7' },
-    ],
-  },
-  {
-    group: 'Export Preferences',
-    items: [
-      { id: 'setting-format',  label: 'Default Export Format', value: 'CSV / Excel' },
-    ],
-  },
-  {
-    group: 'Application',
-    items: [
-      { id: 'setting-theme',   label: 'Theme',    value: 'Dark (default)' },
-      { id: 'setting-version', label: 'Version',  value: '2.0.0' },
-    ],
-  },
-]
-
 export default function SettingsPage() {
   const { isAuthenticated } = useAuth()
 
   // Jira config state
-  const [jiraConfig, setJiraConfig]     = useState(null)    // { jiraBaseUrl, jiraEmail, connected }
+  const [jiraConfig, setJiraConfig]       = useState(null)
   const [configLoading, setConfigLoading] = useState(true)
   const [editMode, setEditMode]           = useState(false)
   const [saving, setSaving]               = useState(false)
   const [disconnecting, setDisconnecting] = useState(false)
   const [configMsg, setConfigMsg]         = useState({ text: '', type: '' })
 
+  // Token Usage & Stats state
+  const [tokensUsed, setTokensUsed]       = useState(0)
+
   // Form fields
-  const [jiraBaseUrl, setJiraBaseUrl]   = useState('')
-  const [jiraEmail, setJiraEmail]       = useState('')
-  const [jiraApiToken, setJiraApiToken] = useState('')
+  const [jiraBaseUrl, setJiraBaseUrl]     = useState('')
+  const [jiraEmail, setJiraEmail]         = useState('')
+  const [jiraApiToken, setJiraApiToken]   = useState('')
 
   useEffect(() => {
-    if (!isAuthenticated) { setConfigLoading(false); return }
-    ;(async () => {
-      try {
-        const res = await getJiraConfig()
-        setJiraConfig(res.config)
-        if (res.config) {
-          setJiraBaseUrl(res.config.jiraBaseUrl || '')
-          setJiraEmail(res.config.jiraEmail || '')
-        }
-      } catch { /* not configured yet */ }
+    // Fetch stats for token count calculation
+    if (isAuthenticated) {
+      getDashboardStats()
+        .then(res => setTokensUsed(res.stats?.tokensUsed || 0))
+        .catch(() => {})
+      getJiraConfig()
+        .then(res => {
+          setJiraConfig(res.config)
+          if (res.config) {
+            setJiraBaseUrl(res.config.jiraBaseUrl || '')
+            setJiraEmail(res.config.jiraEmail || '')
+          }
+        })
+        .catch(() => {})
+        .finally(() => setConfigLoading(false))
+    } else {
+      const gStats = getGuestStats()
+      setTokensUsed(gStats.tokensUsed || 0)
       setConfigLoading(false)
-    })()
+    }
   }, [isAuthenticated])
 
   const handleSaveConfig = async (e) => {
@@ -139,6 +126,50 @@ export default function SettingsPage() {
     info:    { bg: 'rgba(99,102,241,0.1)', border: 'rgba(99,102,241,0.25)', color: '#818cf8' },
   }
 
+  const dynamicGroups = [
+    {
+      group: 'AI Model & Token Consumption',
+      items: [
+        { id: 'setting-model',    label: 'Primary Model',    value: 'Gemini 2.0 Flash' },
+        { id: 'setting-fallback', label: 'Fallback Model',   value: 'Groq Llama 3.3 70B' },
+        { id: 'setting-tokens',   label: 'Max Tokens / Req', value: '4,096 tokens' },
+        {
+          id: 'setting-tokens-used',
+          label: 'Tokens Used (Lifetime)',
+          valueComponent: (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+              <span style={{
+                fontSize: '0.875rem', fontWeight: 800, color: '#4ade80',
+                background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)',
+                padding: '0.2rem 0.65rem', borderRadius: '9999px',
+                display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+              }}>
+                ⚡ {tokensUsed.toLocaleString()} tokens
+              </span>
+              <span style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                ({isAuthenticated ? 'Account usage' : 'Guest session usage'})
+              </span>
+            </div>
+          ),
+        },
+        { id: 'setting-temp', label: 'Temperature', value: '0.7' },
+      ],
+    },
+    {
+      group: 'Export Preferences',
+      items: [
+        { id: 'setting-format', label: 'Default Export Format', value: 'CSV / Excel' },
+      ],
+    },
+    {
+      group: 'Application',
+      items: [
+        { id: 'setting-theme',   label: 'Theme',   value: 'Dark (default)' },
+        { id: 'setting-version', label: 'Version', value: '2.0.0' },
+      ],
+    },
+  ]
+
   return (
     <div style={S.page}>
       <Navbar />
@@ -146,11 +177,11 @@ export default function SettingsPage() {
         <div style={S.badge}>⚙️ Settings</div>
         <h1 style={S.heading}>Settings</h1>
         <p style={S.sub}>
-          Configure your AI model preferences, Jira integration, export formats, and application behaviour.
+          Configure your AI model preferences, track token consumption, manage Jira integration, and application behaviour.
         </p>
 
-        {/* Static Settings Groups */}
-        {staticGroups.map(g => (
+        {/* Dynamic Settings Groups */}
+        {dynamicGroups.map(g => (
           <div key={g.group} style={S.section}>
             <p style={S.sectionH}>{g.group}</p>
             <div style={S.card}>
@@ -160,7 +191,7 @@ export default function SettingsPage() {
                   style={{ ...S.row, borderBottom: idx === g.items.length - 1 ? 'none' : S.row.borderBottom }}
                 >
                   <span style={S.label}>{item.label}</span>
-                  <span style={S.value}>{item.value}</span>
+                  {item.valueComponent ? item.valueComponent : <span style={S.value}>{item.value}</span>}
                 </div>
               ))}
             </div>

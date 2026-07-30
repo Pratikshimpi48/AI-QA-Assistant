@@ -26,10 +26,12 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const message =
-      error.response?.data?.message ||
-      error.message ||
-      'Something went wrong. Please try again.'
+    let message = error.response?.data?.message || error.message || 'Something went wrong. Please try again.'
+
+    if (error.response?.status === 502 || error.code === 'ECONNREFUSED') {
+      message = 'Backend server is temporarily restarting or unavailable. Please try again in a moment.'
+    }
+
     return Promise.reject(new Error(message))
   },
 )

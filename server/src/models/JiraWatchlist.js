@@ -1,16 +1,16 @@
 'use strict'
 
 const mongoose = require('mongoose')
-const { getIsMongoConnected, memoryStore } = require('../config/db')
+const { getIsMongoConnected, memoryStore, saveDiskStore } = require('../config/db')
 
 const watchlistSchema = new mongoose.Schema({
   userId:        { type: String, required: true, index: true },
-  jiraTicketId:  { type: String, required: true },   // e.g. "QA-145"
-  jiraBaseUrl:   { type: String, required: true },   // user's jira instance URL
-  summary:       { type: String, default: '' },      // fetched from Jira on first check
+  jiraTicketId:  { type: String, required: true },
+  jiraBaseUrl:   { type: String, required: true },
+  summary:       { type: String, default: '' },
   currentStatus: { type: String, default: 'Unknown' },
   lastChecked:   { type: Date,   default: null },
-  notified:      { type: Boolean, default: false },  // true once MR-ready notification sent
+  notified:      { type: Boolean, default: false },
   createdAt:     { type: Date, default: Date.now },
 })
 
@@ -22,57 +22,119 @@ class JiraWatchlistModel {
   }
 
   static async create({ userId, jiraTicketId, jiraBaseUrl, summary = '', currentStatus = 'Unknown' }) {
+    const sUserId = String(userId)
+    let mongoRec = null
+
     if (getIsMongoConnected()) {
-      const rec = new MongoWatchlist({ userId: String(userId), jiraTicketId, jiraBaseUrl, summary, currentStatus })
-      await rec.save()
-      return rec
+      try {
+        const rec = new MongoWatchlist({ userId: sUserId, jiraTicketId, jiraBaseUrl, summary, currentStatus })
+        await rec.save()
+        mongoRec = rec
+      } catch (err) {
+        console.warn('[JiraWatchlist] Mongo create error:', err.message)
+      }
     }
-    const id = this._genId()
-    const rec = {
+
+    const id = mongoRec ? String(mongoRec._id) : this._genId()
+    const memRec = {
       id, _id: id,
-      userId: String(userId), jiraTicketId, jiraBaseUrl, summary, currentStatus,
+      userId: sUserId, jiraTicketId, jiraBaseUrl, summary, currentStatus,
       lastChecked: null, notified: false,
       createdAt: new Date().toISOString(),
     }
-    memoryStore.watchlist.push(rec)
-    return rec
+
+    memoryStore.watchlist.push(memRec)
+    saveDiskStore()
+
+    return mongoRec || memRec
   }
 
   static async findByUserId(userId) {
+    const sUserId = String(userId)
+    let mongoItems = []
+
     if (getIsMongoConnected()) {
-      return await MongoWatchlist.find({ userId: String(userId) }).sort({ createdAt: -1 })
+      try {
+        mongoItems = await MongoWatchlist.find({ userId: sUserId }).sort({ createdAt: -1 })
+      } catch (err) {
+        console.warn('[JiraWatchlist] Mongo find error:', err.message)
+      }
     }
-    return memoryStore.watchlist.filter(w => String(w.userId) === String(userId)).reverse()
+
+    const memItems = memoryStore.watchlist.filter(w => String(w.userId) === sUserId).reverse()
+
+    // Merge Mongo items and memItems by ticketId (prefer Mongo)
+    const map = new Map()
+    for (const item of [...memItems, ...mongoItems]) {
+      const key = item.jiraTicketId
+      if (!map.has(key)) map.set(key, item)
+    }
+
+    return Array.from(map.values())
   }
 
   static async findAllActive() {
-    // Returns all watchlist items where notified === false (still being monitored)
+    let mongoActive = []
+
     if (getIsMongoConnected()) {
-      return await MongoWatchlist.find({ notified: false })
+      try {
+        mongoActive = await MongoWatchlist.find({ notified: false })
+      } catch (err) { /* fallback */ }
     }
-    return memoryStore.watchlist.filter(w => !w.notified)
+
+    const memActive = memoryStore.watchlist.filter(w => !w.notified)
+
+    const map = new Map()
+    for (const item of [...memActive, ...mongoActive]) {
+      const key = item.id || item._id || item.jiraTicketId
+      if (!map.has(key)) map.set(key, item)
+    }
+
+    return Array.from(map.values())
   }
 
   static async updateStatus(id, { summary, currentStatus, lastChecked, notified }) {
+    const sId = String(id)
+    let mongoUpdated = null
+
     if (getIsMongoConnected()) {
-      return await MongoWatchlist.findByIdAndUpdate(id, { summary, currentStatus, lastChecked, notified }, { new: true })
+      try {
+        mongoUpdated = await MongoWatchlist.findByIdAndUpdate(
+          id,
+          { summary, currentStatus, lastChecked, notified },
+          { new: true }
+        )
+      } catch (err) { /* ignore */ }
     }
-    const idx = memoryStore.watchlist.findIndex(w => w.id === id || String(w._id) === String(id))
+
+    const idx = memoryStore.watchlist.findIndex(w => w.id === sId || String(w._id) === sId)
     if (idx !== -1) {
       Object.assign(memoryStore.watchlist[idx], { summary, currentStatus, lastChecked, notified })
-      return memoryStore.watchlist[idx]
+      saveDiskStore()
     }
-    return null
+
+    return mongoUpdated || (idx !== -1 ? memoryStore.watchlist[idx] : null)
   }
 
   static async deleteByIdAndUserId(id, userId) {
+    const sId = String(id)
+    const sUserId = String(userId)
+
     if (getIsMongoConnected()) {
-      const res = await MongoWatchlist.deleteOne({ _id: id, userId: String(userId) })
-      return res.deletedCount > 0
+      try {
+        await MongoWatchlist.deleteOne({ _id: id, userId: sUserId })
+      } catch (err) { /* ignore */ }
     }
-    const idx = memoryStore.watchlist.findIndex(w => (w.id === id || String(w._id) === String(id)) && String(w.userId) === String(userId))
-    if (idx !== -1) { memoryStore.watchlist.splice(idx, 1); return true }
-    return false
+
+    const idx = memoryStore.watchlist.findIndex(
+      w => (w.id === sId || String(w._id) === sId) && String(w.userId) === sUserId
+    )
+    if (idx !== -1) {
+      memoryStore.watchlist.splice(idx, 1)
+      saveDiskStore()
+      return true
+    }
+    return true
   }
 }
 

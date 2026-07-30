@@ -18,6 +18,7 @@ router.post('/', optionalAuth, async (req, res, next) => {
       fileContent,
       provider,
       model,
+      targetCount,
     } = req.body
 
     // Basic validation
@@ -42,6 +43,7 @@ router.post('/', optionalAuth, async (req, res, next) => {
       fileContent,
       provider,
       model,
+      targetCount,
     })
 
     // Save to user history if authenticated

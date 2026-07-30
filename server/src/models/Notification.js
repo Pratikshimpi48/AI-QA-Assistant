@@ -1,7 +1,7 @@
 'use strict'
 
 const mongoose = require('mongoose')
-const { getIsMongoConnected, memoryStore } = require('../config/db')
+const { getIsMongoConnected, memoryStore, saveDiskStore } = require('../config/db')
 
 const notificationSchema = new mongoose.Schema({
   userId:        { type: String, required: true, index: true },
@@ -22,57 +22,90 @@ class NotificationModel {
   }
 
   static async create({ userId, type = 'mr-merged', title, message, jiraTicketId = '', jiraBaseUrl = '' }) {
+    const sUserId = String(userId)
+    let mongoNotif = null
+
     if (getIsMongoConnected()) {
-      const notif = new MongoNotification({ userId: String(userId), type, title, message, jiraTicketId, jiraBaseUrl })
-      await notif.save()
-      return notif
+      try {
+        const notif = new MongoNotification({ userId: sUserId, type, title, message, jiraTicketId, jiraBaseUrl })
+        await notif.save()
+        mongoNotif = notif
+      } catch (err) {
+        console.warn('[Notification] Mongo create error:', err.message)
+      }
     }
-    const id = this._genId()
-    const notif = {
+
+    const id = mongoNotif ? String(mongoNotif._id) : this._genId()
+    const memNotif = {
       id, _id: id,
-      userId: String(userId), type, title, message, jiraTicketId, jiraBaseUrl,
+      userId: sUserId, type, title, message, jiraTicketId, jiraBaseUrl,
       read: false, createdAt: new Date().toISOString(),
     }
-    memoryStore.notifications.unshift(notif)
-    return notif
+
+    memoryStore.notifications.unshift(memNotif)
+    saveDiskStore()
+
+    return mongoNotif || memNotif
   }
 
   static async findByUserId(userId) {
+    const sUserId = String(userId)
+    let mongoItems = []
+
     if (getIsMongoConnected()) {
-      return await MongoNotification.find({ userId: String(userId) }).sort({ createdAt: -1 })
+      try {
+        mongoItems = await MongoNotification.find({ userId: sUserId }).sort({ createdAt: -1 })
+      } catch (err) { /* ignore */ }
     }
-    return memoryStore.notifications.filter(n => String(n.userId) === String(userId))
+
+    const memItems = memoryStore.notifications.filter(n => String(n.userId) === sUserId)
+
+    const map = new Map()
+    for (const item of [...memItems, ...mongoItems]) {
+      const key = item.id || item._id || String(item._id)
+      if (!map.has(key)) map.set(key, item)
+    }
+
+    return Array.from(map.values())
   }
 
   static async getUnreadCount(userId) {
-    if (getIsMongoConnected()) {
-      return await MongoNotification.countDocuments({ userId: String(userId), read: false })
-    }
-    return memoryStore.notifications.filter(n => String(n.userId) === String(userId) && !n.read).length
+    const sUserId = String(userId)
+    const items = await this.findByUserId(sUserId)
+    return items.filter(n => !n.read).length
   }
 
   static async markAsRead(id, userId) {
+    const sId = String(id)
+    const sUserId = String(userId)
+
     if (getIsMongoConnected()) {
-      const res = await MongoNotification.findOneAndUpdate(
-        { _id: id, userId: String(userId) },
-        { read: true },
-        { new: true },
-      )
-      return !!res
+      try {
+        await MongoNotification.findOneAndUpdate({ _id: id, userId: sUserId }, { read: true })
+      } catch (err) { /* ignore */ }
     }
-    const notif = memoryStore.notifications.find(n => (n.id === id || String(n._id) === String(id)) && String(n.userId) === String(userId))
-    if (notif) { notif.read = true; return true }
-    return false
+
+    const notif = memoryStore.notifications.find(n => (n.id === sId || String(n._id) === sId) && String(n.userId) === sUserId)
+    if (notif) {
+      notif.read = true
+      saveDiskStore()
+    }
+    return true
   }
 
   static async markAllAsRead(userId) {
+    const sUserId = String(userId)
+
     if (getIsMongoConnected()) {
-      await MongoNotification.updateMany({ userId: String(userId), read: false }, { read: true })
-      return true
+      try {
+        await MongoNotification.updateMany({ userId: sUserId, read: false }, { read: true })
+      } catch (err) { /* ignore */ }
     }
-    memoryStore.notifications
-      .filter(n => String(n.userId) === String(userId))
-      .forEach(n => { n.read = true })
+
+    memoryStore.notifications.forEach(n => {
+      if (String(n.userId) === sUserId) n.read = true
+    })
+    saveDiskStore()
     return true
   }
 }

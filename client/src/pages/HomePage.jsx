@@ -458,11 +458,6 @@ export default function HomePage() {
                       </option>
                     ))}
                   </select>
-                  {provider !== 'auto' && providers.find(p => p.id === provider) && (
-                    <p style={{ fontSize: '0.7rem', color: '#475569', marginTop: '0.3rem' }}>
-                      {providers.find(p => p.id === provider)?.description}
-                    </p>
-                  )}
                 </div>
 
                 {/* ── Generate Button ──────────────────────────── */}
