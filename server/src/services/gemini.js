@@ -30,9 +30,9 @@ async function generateWithGemini(requirements, fileName = null) {
   const genAI = getClient()
   const { systemPrompt, userMessage } = buildPrompt(requirements, fileName)
 
-  // gemini-2.0-flash is the recommended free-tier model (fast + capable)
+  // gemini-flash-latest is the active free-tier endpoint model
   const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
+    model: 'gemini-flash-latest',
     systemInstruction: systemPrompt,
     generationConfig: {
       temperature: 0.4,   // lower = more structured, consistent output
@@ -52,7 +52,7 @@ async function generateWithGemini(requirements, fileName = null) {
 
     return {
       testCases,
-      model: 'gemini-2.0-flash',
+      model: 'gemini-flash-latest',
       provider: 'Google Gemini',
     }
   } catch (err) {
