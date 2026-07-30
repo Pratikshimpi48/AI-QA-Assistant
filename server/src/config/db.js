@@ -7,8 +7,11 @@ let isMongoConnected = false
 
 // In-memory fallback database store
 const memoryStore = {
-  users: [],       // { id, name, email, password, dob, createdAt }
-  history: [],     // { id, userId, type, title, data, meta, createdAt }
+  users:         [],  // { id, name, email, password, dob, createdAt }
+  history:       [],  // { id, userId, type, title, data, meta, createdAt }
+  jiraConfigs:   [],  // { id, userId, jiraBaseUrl, jiraEmail, jiraApiToken, createdAt }
+  watchlist:     [],  // { id, userId, jiraTicketId, projectKey, summary, status, lastChecked, notified, createdAt }
+  notifications: [],  // { id, userId, type, title, message, jiraTicketId, read, createdAt }
 }
 
 async function connectDB() {
