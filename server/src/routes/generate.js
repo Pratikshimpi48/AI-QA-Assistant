@@ -89,7 +89,7 @@ router.get('/providers', (_req, res) => {
     providers: [
       {
         id:          PROVIDERS.GEMINI,
-        name:        'Google Gemini 2.0 Flash',
+        name:        'Google Gemini Flash',
         available:   !!process.env.GEMINI_API_KEY,
         description: 'Fast, accurate — free via Google AI Studio',
       },
