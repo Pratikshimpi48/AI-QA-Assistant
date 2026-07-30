@@ -120,6 +120,11 @@ export async function getWatchlist() {
   return data
 }
 
+export async function syncWatchlist() {
+  const { data } = await api.post('/jira/watchlist/sync')
+  return data
+}
+
 export async function addToWatchlist(payload) {
   const { data } = await api.post('/jira/watchlist', payload)
   return data

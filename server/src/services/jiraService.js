@@ -4,6 +4,21 @@ const axios = require('axios')
 const env   = require('../config/env')
 
 /**
+ * Clean a Jira Base URL to extract just the origin domain.
+ * e.g. "https://hotwaxsystems.atlassian.net/jira/software/c/projects/ASB/boards/3"
+ *   -> "https://hotwaxsystems.atlassian.net"
+ */
+function cleanJiraBaseUrl(rawUrl) {
+  if (!rawUrl) return ''
+  try {
+    const parsed = new URL(rawUrl.trim())
+    return `${parsed.protocol}//${parsed.host}`
+  } catch {
+    return rawUrl.trim().replace(/\/$/, '')
+  }
+}
+
+/**
  * Fetch a Jira issue via REST API v3.
  * @param {string} jiraBaseUrl - e.g. https://yourcompany.atlassian.net
  * @param {string} ticketId    - e.g. QA-145
@@ -11,8 +26,9 @@ const env   = require('../config/env')
  * @param {string} apiToken    - Jira API token
  */
 async function fetchJiraIssue(jiraBaseUrl, ticketId, email, apiToken) {
+  const baseUrl   = cleanJiraBaseUrl(jiraBaseUrl)
   const base64Auth = Buffer.from(`${email}:${apiToken}`).toString('base64')
-  const url        = `${jiraBaseUrl.replace(/\/$/, '')}/rest/api/3/issue/${ticketId}`
+  const url        = `${baseUrl}/rest/api/3/issue/${ticketId}`
 
   const response = await axios.get(url, {
     headers: {
@@ -47,4 +63,4 @@ function isReadyForQA(status) {
   return readyStatuses.some(s => s.toLowerCase() === (status || '').toLowerCase())
 }
 
-module.exports = { fetchJiraIssue, getIssueStatus, getIssueSummary, isReadyForQA }
+module.exports = { cleanJiraBaseUrl, fetchJiraIssue, getIssueStatus, getIssueSummary, isReadyForQA }

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import { useAuth } from '../context/AuthContext'
-import { getWatchlist, addToWatchlist, removeFromWatchlist, getJiraConfig } from '../services/api'
+import { getWatchlist, syncWatchlist, addToWatchlist, removeFromWatchlist, getJiraConfig } from '../services/api'
 
 function timeAgo(dateStr) {
   if (!dateStr) return 'Never'
@@ -51,6 +51,20 @@ export default function JiraWatchlistPage() {
 
   // Remove state
   const [removing, setRemoving] = useState(null)
+
+  const [syncing, setSyncing]       = useState(false)
+
+  const handleSync = async () => {
+    setSyncing(true)
+    try {
+      const res = await syncWatchlist()
+      if (res.watchlist) setWatchlist(res.watchlist)
+    } catch (err) {
+      alert(`Sync failed: ${err.message}`)
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   const loadData = useCallback(async () => {
     try {
@@ -140,22 +154,44 @@ export default function JiraWatchlistPage() {
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '8rem 1.5rem 4rem' }}>
 
         {/* Page Header */}
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-          padding: '0.375rem 1rem', borderRadius: '9999px',
-          background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)',
-          color: '#818cf8', fontSize: '0.75rem', fontWeight: 600, marginBottom: '1.5rem',
-        }}>
-          🎫 Jira Watchlist
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
+          <div>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+              padding: '0.375rem 1rem', borderRadius: '9999px',
+              background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)',
+              color: '#818cf8', fontSize: '0.75rem', fontWeight: 600, marginBottom: '1.25rem',
+            }}>
+              🎫 Jira Watchlist
+            </div>
+            <h1 style={{ fontSize: 'clamp(1.75rem,4vw,2.5rem)', fontWeight: 800, color: 'var(--color-text)', margin: '0 0 0.5rem' }}>
+              Jira MR Watchlist
+            </h1>
+            <p style={{ fontSize: '0.95rem', color: 'var(--color-text-muted)', lineHeight: 1.7, margin: 0, maxWidth: 650 }}>
+              Add Jira ticket IDs to monitor. You'll receive a notification in your{' '}
+              <strong style={{ color: '#818cf8' }}>Notification Center</strong> as soon as the ticket status
+              changes to <em>Ready for QA</em> or <em>Done</em>.
+            </p>
+          </div>
+
+          {jiraConfig?.connected && watchlist.length > 0 && (
+            <button
+              id="sync-watchlist-btn"
+              onClick={handleSync}
+              disabled={syncing}
+              style={{
+                padding: '0.6rem 1.25rem', borderRadius: '0.5rem', fontSize: '0.82rem', fontWeight: 600,
+                background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.3)',
+                color: '#818cf8', cursor: syncing ? 'not-allowed' : 'pointer',
+                opacity: syncing ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: '0.5rem',
+                alignSelf: 'flex-start', marginTop: '1.5rem',
+              }}
+            >
+              <span style={{ display: 'inline-block', transform: syncing ? 'rotate(360deg)' : 'none', transition: 'transform 0.8s ease' }}>🔄</span>
+              {syncing ? 'Syncing Jira...' : 'Sync Watchlist'}
+            </button>
+          )}
         </div>
-        <h1 style={{ fontSize: 'clamp(1.75rem,4vw,2.5rem)', fontWeight: 800, color: 'var(--color-text)', marginBottom: '0.75rem' }}>
-          Jira MR Watchlist
-        </h1>
-        <p style={{ fontSize: '1rem', color: 'var(--color-text-muted)', lineHeight: 1.7, marginBottom: '2rem' }}>
-          Add Jira ticket IDs to monitor. You'll receive a notification in your{' '}
-          <strong style={{ color: '#818cf8' }}>Notification Center</strong> as soon as the ticket status
-          changes to <em>Ready for QA</em> or <em>Done</em>. Only valid, existing tickets from your Jira board can be added.
-        </p>
 
         {/* Jira not connected warning */}
         {!jiraConfig?.connected && (
