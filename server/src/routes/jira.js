@@ -384,7 +384,7 @@ router.get('/ticket/:ticketId', optionalAuth, async (req, res, next) => {
  */
 router.post('/worklog/generate', optionalAuth, async (req, res, next) => {
   try {
-    const { ticketId, ticketData, userNotes, timeSpent } = req.body
+    const { ticketId, ticketData, userNotes, timeSpent, worklogDate } = req.body
     const config = await getEffectiveJiraConfig(req)
 
     let finalTicketData = ticketData
@@ -401,7 +401,7 @@ router.post('/worklog/generate', optionalAuth, async (req, res, next) => {
     if (!finalTicketData) {
       finalTicketData = {
         ticketId: ticketId || 'JIRA-TICKET',
-        summary: 'QA Testing & Issue Verification',
+        summary: 'Work Description & Issue Updates',
         status: 'In Progress',
         issueType: 'Task',
         priority: 'Medium',
@@ -410,9 +410,10 @@ router.post('/worklog/generate', optionalAuth, async (req, res, next) => {
       }
     }
 
-    const { systemPrompt, userMessage } = buildWorklogPrompt(finalTicketData, userNotes, timeSpent)
+    const { systemPrompt, userMessage } = buildWorklogPrompt(finalTicketData, userNotes, timeSpent, worklogDate)
     const aiText = await generateTestCases(userMessage, systemPrompt)
     const worklog = parseWorklogResponse(aiText, finalTicketData, timeSpent)
+    if (worklogDate) worklog.worklogDate = worklogDate
 
     return res.json({ status: 'ok', worklog })
   } catch (err) { next(err) }
@@ -424,7 +425,7 @@ router.post('/worklog/generate', optionalAuth, async (req, res, next) => {
 router.post('/worklog/save', optionalAuth, async (req, res, next) => {
   try {
     const uId = getUserId(req)
-    const { jiraTicketId, jiraBaseUrl, summary, timeSpent, worklogSummary, bulletPoints, formattedJiraWorklog } = req.body
+    const { jiraTicketId, jiraBaseUrl, summary, timeSpent, worklogDate, worklogSummary, bulletPoints, formattedJiraWorklog } = req.body
 
     if (!jiraTicketId || !worklogSummary) {
       return res.status(400).json({ status: 'error', message: 'jiraTicketId and worklogSummary are required.' })
@@ -436,6 +437,7 @@ router.post('/worklog/save', optionalAuth, async (req, res, next) => {
       jiraBaseUrl,
       summary,
       timeSpent,
+      worklogDate,
       worklogSummary,
       bulletPoints,
       formattedJiraWorklog,

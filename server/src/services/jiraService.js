@@ -111,16 +111,27 @@ function extractJiraTicketDetails(issue) {
   }
 
   let commentsText = ''
+  let commentsList = []
   const comments = issue.fields.comment?.comments
   if (Array.isArray(comments) && comments.length > 0) {
-    commentsText = comments
-      .slice(-5)
+    commentsList = comments
+      .slice(-15)
       .map(c => {
-        const author = c.author?.displayName || 'User'
-        const body   = typeof c.body === 'string' ? c.body : extractADFText(c.body)
-        return `[${author}]: ${body}`
+        const author  = c.author?.displayName || c.author?.emailAddress || 'Jira User'
+        const dateStr = c.created ? new Date(c.created).toLocaleString() : ''
+        const body    = typeof c.body === 'string' ? c.body : extractADFText(c.body)
+        return {
+          author,
+          created: c.created || '',
+          dateStr,
+          body: (body || '').trim(),
+        }
       })
-      .join('\n')
+      .filter(c => c.body.length > 0)
+
+    commentsText = commentsList
+      .map(c => `[Comment by ${c.author}${c.dateStr ? ' on ' + c.dateStr : ''}]:\n${c.body}`)
+      .join('\n\n---\n\n')
   }
 
   return {
@@ -131,6 +142,7 @@ function extractJiraTicketDetails(issue) {
     priority,
     descriptionText: descriptionText.trim(),
     commentsText: commentsText.trim(),
+    commentsList,
   }
 }
 

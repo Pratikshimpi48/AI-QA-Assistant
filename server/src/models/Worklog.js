@@ -9,6 +9,7 @@ const worklogSchema = new mongoose.Schema({
   jiraBaseUrl:          { type: String, default: '' },
   summary:              { type: String, default: '' },
   timeSpent:            { type: String, default: '' },
+  worklogDate:          { type: String, default: '' },
   worklogSummary:       { type: String, required: true },
   bulletPoints:         { type: [String], default: [] },
   formattedJiraWorklog: { type: String, default: '' },
@@ -22,9 +23,10 @@ class WorklogModel {
     return 'wl_log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5)
   }
 
-  static async create({ userId, jiraTicketId, jiraBaseUrl = '', summary = '', timeSpent = '', worklogSummary, bulletPoints = [], formattedJiraWorklog = '' }) {
+  static async create({ userId, jiraTicketId, jiraBaseUrl = '', summary = '', timeSpent = '', worklogDate = '', worklogSummary, bulletPoints = [], formattedJiraWorklog = '' }) {
     const sUserId = String(userId)
     let mongoRec = null
+    const finalDate = worklogDate || new Date().toISOString().split('T')[0]
 
     if (getIsMongoConnected()) {
       try {
@@ -34,6 +36,7 @@ class WorklogModel {
           jiraBaseUrl,
           summary,
           timeSpent,
+          worklogDate: finalDate,
           worklogSummary,
           bulletPoints,
           formattedJiraWorklog,
@@ -53,6 +56,7 @@ class WorklogModel {
       jiraBaseUrl,
       summary,
       timeSpent,
+      worklogDate: finalDate,
       worklogSummary,
       bulletPoints,
       formattedJiraWorklog,

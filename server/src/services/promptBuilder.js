@@ -196,37 +196,52 @@ function parseBugReportResponse(text) {
   }
 }
 
-function buildWorklogPrompt(jiraTicketData, userNotes = '', timeSpent = '') {
-  const systemPrompt = `You are a Principal QA Engineer. Your goal is to generate a professional, concise, and accurate daily Work Log Summary based on a Jira ticket's details, activities, and user notes.
+function buildWorklogPrompt(jiraTicketData, userNotes = '', timeSpent = '', worklogDate = '') {
+  const safeTicketId = jiraTicketData.ticketId || 'JIRA-123'
+  const safeSummary  = (jiraTicketData.summary || '').replace(/"/g, "'")
+  const safeStatus   = jiraTicketData.status || 'In Progress'
+
+  const systemPrompt = `You are a Principal Software Engineer & QA Leader. Your task is to generate a concise, professional Work Description summary BASED PRIMARILY AND EXCLUSIVELY ON THE COMMENTS POSTED ON THE JIRA TICKET.
+
+CRITICAL MANDATE:
+1. Analyze all user comments posted on the Jira ticket (development updates, code review notes, testing observations, bug reports, deployment updates, user notes).
+2. Synthesize these comments into a clear, structured "Work Description" that summarizes the progression of work and exact updates recorded in the ticket comments.
+3. The work description is NOT limited to testing — it reflects whatever work updates were discussed and logged in the ticket comments by Jira users.
 
 OUTPUT FORMAT — respond with a valid JSON object and NOTHING ELSE.
 No markdown code fences, no extra text. Only the raw JSON object.
 
 The JSON object MUST have these exact fields:
 {
-  "ticketId": "${jiraTicketData.ticketId || 'JIRA-123'}",
-  "summary": "${(jiraTicketData.summary || '').replace(/"/g, "'")}",
-  "status": "${jiraTicketData.status || 'In Progress'}",
+  "ticketId": "${safeTicketId}",
+  "summary": "${safeSummary}",
+  "status": "${safeStatus}",
   "timeSpent": "${timeSpent || '1h 30m'}",
-  "worklogSummary": "Rich Markdown summary of QA activities performed...",
+  "worklogDate": "${worklogDate || new Date().toISOString().split('T')[0]}",
+  "worklogSummary": "Rich Markdown Work Description synthesizing the work updates and details from ticket comments...",
   "bulletPoints": [
-    "Executed positive and boundary test cases for the feature workflow",
-    "Verified API payload validation and error handling on edge cases",
-    "Confirmed status update in Jira and reported findings"
+    "Key work update extracted from ticket comments",
+    "Verification or implementation detail noted in discussion"
   ],
-  "formattedJiraWorklog": "*QA Work Log — [${jiraTicketData.ticketId || 'JIRA-123'}]*\\n• Executed positive and boundary test cases for the feature workflow\\n• Verified API payload validation and error handling\\n• Current Status: ${jiraTicketData.status || 'In Progress'}"
+  "formattedJiraWorklog": "*Work Log — [${safeTicketId}] (${worklogDate || 'Today'})*\\n• Synthesized update based on ticket comments\\n• Current Status: ${safeStatus}"
 }`
 
-  const userMessage = `Generate a professional QA Work Log for this Jira Ticket:
-Ticket ID: ${jiraTicketData.ticketId || ''}
-Summary: ${jiraTicketData.summary || ''}
-Status: ${jiraTicketData.status || ''}
-Issue Type: ${jiraTicketData.issueType || ''}
-Priority: ${jiraTicketData.priority || ''}
-Description: ${(jiraTicketData.descriptionText || 'No description provided.').slice(0, 3000)}
-Recent Activity / Comments: ${(jiraTicketData.commentsText || 'No recent comments.').slice(0, 3000)}
+  const userMessage = `Synthesize a professional Work Description for this Jira Ticket based on all comments and updates posted by Jira users:
+
+Ticket ID: ${safeTicketId}
+Summary: ${safeSummary}
+Status: ${safeStatus}
+Issue Type: ${jiraTicketData.issueType || 'Task'}
+
+*** COMMENTS POSTED ON JIRA TICKET (PRIMARY SOURCE) ***:
+${jiraTicketData.commentsText || 'No comments posted yet on this ticket. (Use ticket description & user notes below)'}
+
+Ticket Description Context:
+${(jiraTicketData.descriptionText || 'No description provided.').slice(0, 2000)}
+
+Work Log Date: ${worklogDate || 'Today'}
 Time Spent: ${timeSpent || 'Not specified'}
-User Notes / Manual Updates: ${userNotes || 'None'}`
+Additional User Work Notes: ${userNotes || 'None'}`
 
   return { systemPrompt, userMessage }
 }
