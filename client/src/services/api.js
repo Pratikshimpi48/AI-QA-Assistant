@@ -250,7 +250,8 @@ export function getWatchlistCache(userId) {
   try {
     const key = userId ? `ai_qa_watchlist_${userId}` : 'ai_qa_watchlist_guest'
     const raw = localStorage.getItem(key) || localStorage.getItem('ai_qa_watchlist_guest')
-    return raw ? JSON.parse(raw) : []
+    const list = raw ? JSON.parse(raw) : []
+    return Array.isArray(list) ? list.filter(w => !w.isReleased) : []
   } catch {
     return []
   }

@@ -51,19 +51,22 @@ class JiraWatchlistModel {
     return mongoRec || memRec
   }
 
-  static async findByUserId(userId) {
+  static async findByUserId(userId, includeReleased = false) {
     const sUserId = String(userId)
     let mongoItems = []
 
     if (getIsMongoConnected()) {
       try {
-        mongoItems = await MongoWatchlist.find({ userId: sUserId }).sort({ createdAt: -1 })
+        const query = includeReleased ? { userId: sUserId } : { userId: sUserId, isReleased: { $ne: true } }
+        mongoItems = await MongoWatchlist.find(query).sort({ createdAt: -1 })
       } catch (err) {
         console.warn('[JiraWatchlist] Mongo find error:', err.message)
       }
     }
 
-    const memItems = memoryStore.watchlist.filter(w => String(w.userId) === sUserId).reverse()
+    const memItems = memoryStore.watchlist
+      .filter(w => String(w.userId) === sUserId && (includeReleased || !w.isReleased))
+      .reverse()
 
     // Merge Mongo items and memItems by ticketId (prefer Mongo)
     const map = new Map()

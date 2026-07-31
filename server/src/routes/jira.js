@@ -189,12 +189,13 @@ async function syncWatchlistItems(items, config) {
 router.get('/watchlist', optionalAuth, async (req, res, next) => {
   try {
     const uId = getUserId(req)
-    let items = await JiraWatchlistModel.findByUserId(uId)
+    let items = await JiraWatchlistModel.findByUserId(uId, false)
     const config = await getEffectiveJiraConfig(req)
 
     const needsSync = items.some(i => !i.lastChecked || i.currentStatus === 'Unknown' || !i.summary)
     if (needsSync && config) {
       items = await syncWatchlistItems(items, config)
+      items = items.filter(i => !i.isReleased)
     }
 
     return res.json({ status: 'ok', watchlist: items })
@@ -211,9 +212,10 @@ router.post('/watchlist/sync', optionalAuth, async (req, res, next) => {
       return res.status(400).json({ status: 'error', message: 'Jira is not connected.' })
     }
     const uId = getUserId(req)
-    const items  = await JiraWatchlistModel.findByUserId(uId)
+    const items  = await JiraWatchlistModel.findByUserId(uId, false)
     const synced = await syncWatchlistItems(items, config)
-    return res.json({ status: 'ok', watchlist: synced, message: 'Watchlist synced with Jira.' })
+    const active = synced.filter(i => !i.isReleased)
+    return res.json({ status: 'ok', watchlist: active, message: 'Watchlist synced with Jira.' })
   } catch (err) { next(err) }
 })
 

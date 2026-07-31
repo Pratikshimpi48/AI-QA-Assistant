@@ -64,20 +64,18 @@ function isReadyForQA(status) {
 }
 
 /**
- * Check if a Jira status means the ticket has reached final release stage ("To Be Released", "Released", "Closed").
+ * Check if a Jira status means the ticket has reached final release stage ("To Be Released" or "Released").
+ * Intermediate statuses like "Done", "Resolved", or "Closed" in sprint do NOT trigger auto-release.
  */
 function isReleasedStatus(status) {
   const s = (status || '').toLowerCase().trim()
   const releaseKeywords = [
     'to be released',
     'released',
-    'closed',
     'released to production',
     'released to prod',
-    'production',
-    'live',
   ]
-  return releaseKeywords.some(rel => s.includes(rel) || s === rel)
+  return releaseKeywords.some(rel => s === rel || s.includes('to be released') || s === 'released')
 }
 
 module.exports = { cleanJiraBaseUrl, fetchJiraIssue, getIssueStatus, getIssueSummary, isReadyForQA, isReleasedStatus }
