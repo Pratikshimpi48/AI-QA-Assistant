@@ -62,21 +62,22 @@ export default function SettingsPage() {
       getDashboardStats()
         .then(res => setTokensUsed(res.stats?.tokensUsed || 0))
         .catch(() => {})
-      getJiraConfig()
-        .then(res => {
-          setJiraConfig(res.config)
-          if (res.config) {
-            setJiraBaseUrl(res.config.jiraBaseUrl || '')
-            setJiraEmail(res.config.jiraEmail || '')
-          }
-        })
-        .catch(() => {})
-        .finally(() => setConfigLoading(false))
     } else {
       const gStats = getGuestStats()
       setTokensUsed(gStats.tokensUsed || 0)
-      setConfigLoading(false)
     }
+
+    // Load Jira config (checks backend + local storage fallback for guest/session recovery)
+    getJiraConfig()
+      .then(res => {
+        setJiraConfig(res.config)
+        if (res.config) {
+          setJiraBaseUrl(res.config.jiraBaseUrl || '')
+          setJiraEmail(res.config.jiraEmail || '')
+        }
+      })
+      .catch(() => {})
+      .finally(() => setConfigLoading(false))
   }, [isAuthenticated])
 
   const handleSaveConfig = async (e) => {
@@ -202,15 +203,7 @@ export default function SettingsPage() {
         <div style={S.section}>
           <p style={S.sectionH}>🔗 Jira Integration</p>
 
-          {!isAuthenticated ? (
-            <div style={{
-              padding: '1.25rem', borderRadius: '0.875rem',
-              background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)',
-              color: '#64748b', fontSize: '0.875rem', textAlign: 'center',
-            }}>
-              Please <strong style={{ color: '#818cf8' }}>log in</strong> to configure your Jira integration.
-            </div>
-          ) : configLoading ? (
+          {configLoading ? (
             <div style={{
               padding: '1.5rem', borderRadius: '0.875rem',
               background: 'var(--color-surface)', border: '1px solid var(--color-border)',

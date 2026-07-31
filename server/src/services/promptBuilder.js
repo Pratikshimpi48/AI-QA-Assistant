@@ -10,9 +10,43 @@
  */
 function buildPrompt(requirements, fileName = null, template = null) {
   const source = fileName ? `document "${fileName}"` : 'the requirements below'
-  const templateNotice = template ? `\n\nORGANIZATIONAL REPORT TEMPLATE ("${template.name}"): Populate each test case using the required structure fields: ${JSON.stringify(template.structure?.fields || [])}` : ''
 
-  const systemPrompt = `You are an expert Principal QA Engineer with 15+ years of experience writing exhaustive, enterprise-grade software test cases. Your goal is to achieve 100% test coverage.${templateNotice}
+  let fieldsInstruction = `Each test case object MUST have these exact fields:
+{
+  "id":       "TC-001",
+  "title":    "...",
+  "type":     "Positive|Negative|Edge Case|Security",
+  "priority": "High|Medium|Low",
+  "steps":    ["step 1", "step 2", "..."],
+  "expected": "...",
+  "tags":     ["feature", "auth"]
+}`
+
+  if (template && template.structure && Array.isArray(template.structure.fields) && template.structure.fields.length > 0) {
+    const fields = template.structure.fields
+
+    const sampleObj = {}
+    fields.forEach(f => {
+      if (f === 'testCaseId') sampleObj[f] = 'TC_BAP_001'
+      else if (f === 'id') sampleObj[f] = 'TC-001'
+      else if (f === 'scenario' || f === 'title' || f === 'scenarioTitle') sampleObj[f] = 'Verify the user is able to perform action'
+      else if (f === 'stepDescription' || f === 'steps' || f === 'executionSteps' || f === 'stepsToTrigger') sampleObj[f] = '1. Click button\n2. Enter valid details'
+      else if (f === 'expectedResult' || f === 'expected' || f === 'expectedOutputs') sampleObj[f] = 'User should see success message and be redirected.'
+      else if (f === 'actualResult') sampleObj[f] = 'User is able to see success message and redirected.'
+      else if (f === 'testData' || f === 'inputData') sampleObj[f] = 'Email: test.user@example.com, Password: TestPassword123'
+      else if (f === 'status') sampleObj[f] = 'Passed'
+      else if (f === 'bugId') sampleObj[f] = ''
+      else if (f === 'qaComments') sampleObj[f] = 'Verified on staging environment.'
+      else sampleObj[f] = '...'
+    })
+
+    fieldsInstruction = `ORGANIZATIONAL TEMPLATE MANDATE ("${template.name}"):
+Each test case object MUST be populated using the EXACT schema structure fields displayed to the user in the template preview.
+Each test case object MUST contain these exact JSON keys:
+${JSON.stringify(sampleObj, null, 2)}`
+  }
+
+  const systemPrompt = `You are an expert Principal QA Engineer with 15+ years of experience writing exhaustive, enterprise-grade software test cases. Your goal is to achieve 100% test coverage.
 
 Analyse the provided requirements thoroughly and generate AS MANY comprehensive, detailed, non-redundant test cases as necessary to thoroughly test every aspect of the feature.
 
@@ -27,16 +61,7 @@ DO NOT arbitrarily limit or cap the number of test cases. Generate as many relev
 OUTPUT FORMAT — respond with a valid JSON array and NOTHING ELSE.
 No markdown, no code fences, no explanation text. Only the raw JSON array.
 
-Each test case object MUST have these exact fields:
-{
-  "id":       "TC-001",           // sequential zero-padded ID (TC-001, TC-002, ...)
-  "title":    "...",              // concise, descriptive action-based title
-  "type":     "Positive|Negative|Edge Case|Security",
-  "priority": "High|Medium|Low",
-  "steps":    ["step 1", "step 2", "..."],  // array of clear, step-by-step actions
-  "expected": "...",              // exact expected result
-  "tags":     ["feature", "auth"]   // 1-3 relevant feature tags
-}`
+${fieldsInstruction}`
 
   const userMessage = `Analyse ${source} thoroughly and generate all necessary test cases for 100% coverage:\n\n${requirements.slice(0, 15_000)}`
 

@@ -2,10 +2,35 @@
 
 const express            = require('express')
 const router             = express.Router()
-const { authenticateToken } = require('../middleware/auth')
+const { optionalAuth }   = require('../middleware/auth')
 const JiraConfigModel    = require('../models/JiraConfig')
 const JiraWatchlistModel = require('../models/JiraWatchlist')
 const { cleanJiraBaseUrl, fetchJiraIssue, getIssueStatus, getIssueSummary } = require('../services/jiraService')
+
+/** Helper to extract Jira credentials from user model or request headers */
+async function getEffectiveJiraConfig(req) {
+  let config = null
+  if (req.user) {
+    config = await JiraConfigModel.findByUserId(req.user.id)
+  }
+  if (!config) {
+    const headerUrl   = req.headers['x-jira-base-url']
+    const headerEmail = req.headers['x-jira-email']
+    const headerToken = req.headers['x-jira-api-token']
+    if (headerUrl && headerEmail && headerToken) {
+      config = {
+        jiraBaseUrl:  cleanJiraBaseUrl(headerUrl),
+        jiraEmail:    headerEmail,
+        jiraApiToken: headerToken,
+      }
+    }
+  }
+  return config
+}
+
+function getUserId(req) {
+  return req.user ? String(req.user.id) : 'guest_session'
+}
 
 /* ──────────────────────────────────────────────────
    Jira Config (per-user credentials from Settings)
@@ -14,17 +39,36 @@ const { cleanJiraBaseUrl, fetchJiraIssue, getIssueStatus, getIssueSummary } = re
 /**
  * GET /api/jira/config — get user's Jira connection (token masked)
  */
-router.get('/config', authenticateToken, async (req, res, next) => {
+router.get('/config', optionalAuth, async (req, res, next) => {
   try {
-    const config = await JiraConfigModel.findByUserId(req.user.id)
-    return res.json({ status: 'ok', config: JiraConfigModel.sanitize(config) })
+    if (req.user) {
+      const config = await JiraConfigModel.findByUserId(req.user.id)
+      if (config) {
+        return res.json({ status: 'ok', config: JiraConfigModel.sanitize(config) })
+      }
+    }
+
+    const headerUrl   = req.headers['x-jira-base-url']
+    const headerEmail = req.headers['x-jira-email']
+    if (headerUrl && headerEmail) {
+      return res.json({
+        status: 'ok',
+        config: {
+          jiraBaseUrl: headerUrl,
+          jiraEmail:   headerEmail,
+          connected:   true,
+        },
+      })
+    }
+
+    return res.json({ status: 'ok', config: null })
   } catch (err) { next(err) }
 })
 
 /**
  * POST /api/jira/config — save or update user's Jira credentials
  */
-router.post('/config', authenticateToken, async (req, res, next) => {
+router.post('/config', optionalAuth, async (req, res, next) => {
   try {
     const { jiraBaseUrl, jiraEmail, jiraApiToken } = req.body
     if (!jiraBaseUrl || !jiraEmail || !jiraApiToken) {
@@ -48,21 +92,33 @@ router.post('/config', authenticateToken, async (req, res, next) => {
       })
     }
 
-    const config = await JiraConfigModel.upsert(req.user.id, {
+    let sanitizedConfig = {
       jiraBaseUrl: cleanedBaseUrl,
       jiraEmail,
-      jiraApiToken,
-    })
-    return res.json({ status: 'ok', config: JiraConfigModel.sanitize(config), message: 'Jira connected successfully.' })
+      connected: true,
+    }
+
+    if (req.user) {
+      const config = await JiraConfigModel.upsert(req.user.id, {
+        jiraBaseUrl: cleanedBaseUrl,
+        jiraEmail,
+        jiraApiToken,
+      })
+      sanitizedConfig = JiraConfigModel.sanitize(config)
+    }
+
+    return res.json({ status: 'ok', config: sanitizedConfig, message: 'Jira connected successfully.' })
   } catch (err) { next(err) }
 })
 
 /**
  * DELETE /api/jira/config — disconnect Jira for this user
  */
-router.delete('/config', authenticateToken, async (req, res, next) => {
+router.delete('/config', optionalAuth, async (req, res, next) => {
   try {
-    await JiraConfigModel.deleteByUserId(req.user.id)
+    if (req.user) {
+      await JiraConfigModel.deleteByUserId(req.user.id)
+    }
     return res.json({ status: 'ok', message: 'Jira disconnected.' })
   } catch (err) { next(err) }
 })
@@ -76,6 +132,8 @@ router.delete('/config', authenticateToken, async (req, res, next) => {
  */
 async function syncWatchlistItems(items, config) {
   if (!config || !config.jiraEmail || !config.jiraApiToken) return items
+  const { isReleasedStatus, isReadyForQA } = require('../services/jiraService')
+  const NotificationModel = require('../models/Notification')
 
   const updatedItems = await Promise.all(
     items.map(async (item) => {
@@ -86,11 +144,34 @@ async function syncWatchlistItems(items, config) {
         const summary = getIssueSummary(issue)
         const now     = new Date()
 
+        const prevStatus = item.lastNotifiedStatus || item.currentStatus || ''
+        const statusChanged = prevStatus.length > 0 && prevStatus.toLowerCase() !== status.toLowerCase() && prevStatus !== 'Unknown'
+        const isReleased = isReleasedStatus(status)
+        const isQA       = isReadyForQA(status)
+
+        if (statusChanged) {
+          const notifType  = isReleased ? 'ticket-released' : (isQA ? 'mr-merged' : 'status-changed')
+          const notifIcon  = isReleased ? '🚀' : (isQA ? '🧪' : '🔄')
+          const notifTitle = `${notifIcon} ${item.jiraTicketId} status changed to "${status}"`
+          const notifMsg   = `Ticket "${summary || item.jiraTicketId}" moved from status "${prevStatus}" to "${status}".`
+
+          await NotificationModel.create({
+            userId:       item.userId,
+            type:         notifType,
+            title:        notifTitle,
+            message:      notifMsg,
+            jiraTicketId: item.jiraTicketId,
+            jiraBaseUrl:  baseUrl,
+          })
+        }
+
         const updated = await JiraWatchlistModel.updateStatus(item._id || item.id, {
           summary,
-          currentStatus: status,
-          lastChecked:   now,
-          notified:      item.notified || false,
+          currentStatus:      status,
+          lastNotifiedStatus: status,
+          lastChecked:        now,
+          notified:           isQA || isReleased,
+          isReleased:         isReleased,
         })
         return updated || item
       } catch (err) {
@@ -103,14 +184,14 @@ async function syncWatchlistItems(items, config) {
 }
 
 /**
- * GET /api/jira/watchlist — get user's watchlist (auto-syncs items with unknown status or null lastChecked)
+ * GET /api/jira/watchlist — get user's watchlist
  */
-router.get('/watchlist', authenticateToken, async (req, res, next) => {
+router.get('/watchlist', optionalAuth, async (req, res, next) => {
   try {
-    let items  = await JiraWatchlistModel.findByUserId(req.user.id)
-    const config = await JiraConfigModel.findByUserId(req.user.id)
+    const uId = getUserId(req)
+    let items = await JiraWatchlistModel.findByUserId(uId)
+    const config = await getEffectiveJiraConfig(req)
 
-    // Auto-sync items if any have never been checked or have 'Unknown' status
     const needsSync = items.some(i => !i.lastChecked || i.currentStatus === 'Unknown' || !i.summary)
     if (needsSync && config) {
       items = await syncWatchlistItems(items, config)
@@ -121,24 +202,44 @@ router.get('/watchlist', authenticateToken, async (req, res, next) => {
 })
 
 /**
- * POST /api/jira/watchlist/sync — manually refresh all items in watchlist from Jira
+ * POST /api/jira/watchlist/sync — manually refresh watchlist from Jira
  */
-router.post('/watchlist/sync', authenticateToken, async (req, res, next) => {
+router.post('/watchlist/sync', optionalAuth, async (req, res, next) => {
   try {
-    const config = await JiraConfigModel.findByUserId(req.user.id)
+    const config = await getEffectiveJiraConfig(req)
     if (!config) {
       return res.status(400).json({ status: 'error', message: 'Jira is not connected.' })
     }
-    const items   = await JiraWatchlistModel.findByUserId(req.user.id)
-    const synced  = await syncWatchlistItems(items, config)
+    const uId = getUserId(req)
+    const items  = await JiraWatchlistModel.findByUserId(uId)
+    const synced = await syncWatchlistItems(items, config)
     return res.json({ status: 'ok', watchlist: synced, message: 'Watchlist synced with Jira.' })
+  } catch (err) { next(err) }
+})
+
+/**
+ * POST /api/jira/watchlist/sync-guest — migrate guest session watchlist tickets to user account
+ */
+router.post('/watchlist/sync-guest', optionalAuth, async (req, res, next) => {
+  try {
+    if (!req.user) {
+      return res.json({ status: 'ok', count: 0, message: 'No user authenticated for migration.' })
+    }
+    const count = await JiraWatchlistModel.migrateGuestItems(req.user.id)
+    const updatedWatchlist = await JiraWatchlistModel.findByUserId(req.user.id)
+    return res.json({
+      status:    'ok',
+      count,
+      watchlist: updatedWatchlist,
+      message:   `Migrated ${count} guest watchlist ticket(s) to your account.`,
+    })
   } catch (err) { next(err) }
 })
 
 /**
  * POST /api/jira/watchlist — add Jira ticket to watchlist with live verification
  */
-router.post('/watchlist', authenticateToken, async (req, res, next) => {
+router.post('/watchlist', optionalAuth, async (req, res, next) => {
   try {
     const { jiraTicketId } = req.body
     const ticketId = (jiraTicketId || '').trim().toUpperCase()
@@ -154,17 +255,18 @@ router.post('/watchlist', authenticateToken, async (req, res, next) => {
       })
     }
 
-    const config = await JiraConfigModel.findByUserId(req.user.id)
+    const config = await getEffectiveJiraConfig(req)
     if (!config) {
       return res.status(503).json({ status: 'error', message: 'Jira is not configured. Please connect Jira in Settings first.' })
     }
 
-    const existingWatchlist = await JiraWatchlistModel.findByUserId(req.user.id)
-    const alreadyWatching   = existingWatchlist.find(w => w.jiraTicketId === ticketId && !w.notified)
+    const uId = getUserId(req)
+    const existingWatchlist = await JiraWatchlistModel.findByUserId(uId)
+    const alreadyWatching   = existingWatchlist.find(w => w.jiraTicketId === ticketId && !w.isReleased)
     if (alreadyWatching) {
       return res.status(409).json({
         status:  'error',
-        message: `Ticket ${ticketId} is already in your watchlist.`,
+        message: `Ticket ${ticketId} is already active in your watchlist.`,
       })
     }
 
@@ -204,14 +306,13 @@ router.post('/watchlist', authenticateToken, async (req, res, next) => {
     }
 
     const item = await JiraWatchlistModel.create({
-      userId:       req.user.id,
+      userId:       uId,
       jiraTicketId: ticketId,
       jiraBaseUrl:  cleanedBaseUrl,
       summary,
       currentStatus,
     })
 
-    // Immediately update lastChecked time
     const updated = await JiraWatchlistModel.updateStatus(item._id || item.id, {
       summary,
       currentStatus,
@@ -230,9 +331,10 @@ router.post('/watchlist', authenticateToken, async (req, res, next) => {
 /**
  * DELETE /api/jira/watchlist/:id — remove from watchlist
  */
-router.delete('/watchlist/:id', authenticateToken, async (req, res, next) => {
+router.delete('/watchlist/:id', optionalAuth, async (req, res, next) => {
   try {
-    const deleted = await JiraWatchlistModel.deleteByIdAndUserId(req.params.id, req.user.id)
+    const uId = getUserId(req)
+    const deleted = await JiraWatchlistModel.deleteByIdAndUserId(req.params.id, uId)
     if (!deleted) return res.status(404).json({ status: 'error', message: 'Watchlist item not found.' })
     return res.json({ status: 'ok', message: 'Removed from watchlist.' })
   } catch (err) { next(err) }

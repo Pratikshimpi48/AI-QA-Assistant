@@ -4,12 +4,13 @@ const env                = require('../config/env')
 const JiraWatchlistModel = require('../models/JiraWatchlist')
 const JiraConfigModel    = require('../models/JiraConfig')
 const NotificationModel  = require('../models/Notification')
-const { fetchJiraIssue, getIssueStatus, getIssueSummary, isReadyForQA } = require('./jiraService')
+const { fetchJiraIssue, getIssueStatus, getIssueSummary, isReadyForQA, isReleasedStatus } = require('./jiraService')
 
 let pollerInterval = null
 
 /**
- * Poll a single watchlist item — fetch Jira status and create notification if ready.
+ * Poll a single watchlist item — fetch Jira status and create notification when status advances.
+ * Ticket remains active in the Watchlist view until status reaches 'To Be Released' or 'Released'.
  */
 async function pollWatchlistItem(item) {
   try {
@@ -27,35 +28,39 @@ async function pollWatchlistItem(item) {
 
     console.log(`[JiraPoller] Ticket ${item.jiraTicketId} → status: "${status}"`)
 
-    if (isReadyForQA(status)) {
-      // Status changed to ready — create notification and mark as notified
+    const prevStatus = item.lastNotifiedStatus || item.currentStatus || ''
+    const statusChanged = prevStatus.length > 0 && prevStatus.toLowerCase() !== status.toLowerCase() && prevStatus !== 'Unknown'
+    const isReleased = isReleasedStatus(status)
+    const isQA       = isReadyForQA(status)
+
+    // Notify user whenever ANY ticket status transition occurs
+    if (statusChanged) {
+      const notifType  = isReleased ? 'ticket-released' : (isQA ? 'mr-merged' : 'status-changed')
+      const notifIcon  = isReleased ? '🚀' : (isQA ? '🧪' : '🔄')
+      const notifTitle = `${notifIcon} ${item.jiraTicketId} status changed to "${status}"`
+      const notifMsg   = `Ticket "${summary || item.jiraTicketId}" moved from status "${prevStatus}" to "${status}".`
+
       await NotificationModel.create({
         userId:       item.userId,
-        type:         'mr-merged',
-        title:        `✅ ${item.jiraTicketId} is Ready for QA Testing`,
-        message:      `Ticket "${summary || item.jiraTicketId}" has moved to status "${status}". The MR has been merged — you can now start QA testing.`,
+        type:         notifType,
+        title:        notifTitle,
+        message:      notifMsg,
         jiraTicketId: item.jiraTicketId,
         jiraBaseUrl:  item.jiraBaseUrl || config.jiraBaseUrl,
       })
-      await JiraWatchlistModel.updateStatus(item._id || item.id, {
-        summary,
-        currentStatus: status,
-        lastChecked:   now,
-        notified:      true,
-      })
-      console.log(`[JiraPoller] 🔔 Notification created for ${item.jiraTicketId} (user: ${item.userId})`)
-    } else {
-      // Status still open — update summary and lastChecked, keep notified: false
-      await JiraWatchlistModel.updateStatus(item._id || item.id, {
-        summary,
-        currentStatus: status,
-        lastChecked:   now,
-        notified:      false,
-      })
+      console.log(`[JiraPoller] 🔔 Notification created for ${item.jiraTicketId}: "${prevStatus}" → "${status}"`)
     }
+
+    await JiraWatchlistModel.updateStatus(item._id || item.id, {
+      summary,
+      currentStatus:      status,
+      lastNotifiedStatus: status,
+      lastChecked:        now,
+      notified:           isQA || isReleased,
+      isReleased:         isReleased,
+    })
   } catch (err) {
     console.warn(`[JiraPoller] Error polling ${item.jiraTicketId}: ${err.message}`)
-    // Don't crash — gracefully continue to next item
   }
 }
 

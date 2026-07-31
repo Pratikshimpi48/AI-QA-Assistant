@@ -633,7 +633,10 @@ export default function HomePage() {
 
                     <ExportButton
                       label="Export Test Cases"
-                      onExport={(format) => exportTestCases(result.testCases, format, 'Generated_Test_Cases')}
+                      onExport={(format) => {
+                        const activeTmpl = templatesList.find(t => t.id === selectedTemplateId) || templatesList[0]
+                        exportTestCases(result.testCases, format, 'Generated_Test_Cases', activeTmpl)
+                      }}
                     />
                   </div>
                 </div>
@@ -643,6 +646,7 @@ export default function HomePage() {
                   <ExcelMatrixTable
                     testCases={result.testCases}
                     sectionName={result.meta?.fileName ? result.meta.fileName.toUpperCase() : 'FEATURE TEST MATRIX'}
+                    template={templatesList.find(t => t.id === selectedTemplateId) || templatesList[0]}
                   />
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>

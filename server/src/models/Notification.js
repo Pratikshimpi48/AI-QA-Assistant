@@ -5,7 +5,7 @@ const { getIsMongoConnected, memoryStore, saveDiskStore } = require('../config/d
 
 const notificationSchema = new mongoose.Schema({
   userId:        { type: String, required: true, index: true },
-  type:          { type: String, enum: ['mr-merged', 'system'], default: 'mr-merged' },
+  type:          { type: String, default: 'status-changed' },
   title:         { type: String, required: true },
   message:       { type: String, required: true },
   jiraTicketId:  { type: String, default: '' },

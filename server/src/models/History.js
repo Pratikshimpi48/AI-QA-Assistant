@@ -82,7 +82,7 @@ class HistoryModel {
       if (!map.has(key)) map.set(key, item)
     }
 
-    return Array.from(map.values())
+    return Array.from(map.values()).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
   }
 
   static async deleteByIdAndUserId(id, userId) {

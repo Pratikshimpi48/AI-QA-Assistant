@@ -52,8 +52,9 @@ export function NotificationProvider({ children }) {
             const newUnread = fetched.filter(n => !n.read && !prevIds.has(n.id || n._id))
 
             newUnread.forEach(n => {
+              const toastType = (n.type === 'mr-merged' || n.type === 'ticket-released') ? 'success' : 'info'
               addToast({
-                type:         n.type === 'mr-merged' ? 'success' : 'info',
+                type:         toastType,
                 title:        n.title,
                 message:      n.message,
                 jiraTicketId: n.jiraTicketId,

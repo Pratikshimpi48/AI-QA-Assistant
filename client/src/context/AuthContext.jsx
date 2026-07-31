@@ -5,7 +5,10 @@ import {
   getCurrentUser,
   updateUserProfile as apiUpdateProfile,
   updateUserPassword as apiUpdatePassword,
+  syncGuestHistory,
+  syncGuestWatchlist,
 } from '../services/api'
+import { getGuestHistory, clearGuestSession } from '../utils/guestSession'
 
 const AuthContext = createContext(null)
 
@@ -16,6 +19,19 @@ export function AuthProvider({ children }) {
     try { return saved ? JSON.parse(saved) : null } catch { return null }
   })
   const [loading, setLoading]       = useState(true)
+
+  const syncGuestData = async () => {
+    try {
+      const guestItems = getGuestHistory()
+      if (Array.isArray(guestItems) && guestItems.length > 0) {
+        await syncGuestHistory(guestItems)
+        clearGuestSession()
+      }
+      await syncGuestWatchlist()
+    } catch (err) {
+      console.warn('Failed to sync guest data on auth:', err.message)
+    }
+  }
 
   // Validate stored token on startup
   useEffect(() => {
@@ -29,6 +45,7 @@ export function AuthProvider({ children }) {
         const data = await getCurrentUser()
         setUser(data.user)
         localStorage.setItem('ai_qa_user', JSON.stringify(data.user))
+        await syncGuestData()
       } catch (err) {
         console.warn('Session verification failed:', err.message)
         logout()
@@ -46,6 +63,7 @@ export function AuthProvider({ children }) {
     setUser(data.user)
     localStorage.setItem('ai_qa_token', data.token)
     localStorage.setItem('ai_qa_user', JSON.stringify(data.user))
+    await syncGuestData()
     return data
   }
 
@@ -55,6 +73,7 @@ export function AuthProvider({ children }) {
     setUser(data.user)
     localStorage.setItem('ai_qa_token', data.token)
     localStorage.setItem('ai_qa_user', JSON.stringify(data.user))
+    await syncGuestData()
     return data
   }
 

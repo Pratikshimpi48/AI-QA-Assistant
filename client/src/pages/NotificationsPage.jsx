@@ -16,6 +16,13 @@ function timeAgo(dateStr) {
   return `${days} day${days > 1 ? 's' : ''} ago`
 }
 
+function getNotificationBadge(type) {
+  if (type === 'ticket-released') return { icon: '🚀', bg: 'rgba(168,85,247,0.15)', color: '#c084fc' }
+  if (type === 'mr-merged')       return { icon: '🧪', bg: 'rgba(34,197,94,0.15)',   color: '#4ade80' }
+  if (type === 'status-changed')   return { icon: '🔄', bg: 'rgba(59,130,246,0.15)',   color: '#60a5fa' }
+  return { icon: '🔔', bg: 'rgba(99,102,241,0.15)', color: '#818cf8' }
+}
+
 export default function NotificationsPage() {
   const { isAuthenticated, loading: authLoading } = useAuth()
   const navigate = useNavigate()
@@ -125,7 +132,7 @@ export default function NotificationsPage() {
             <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>🔔</div>
             <h3 style={{ color: '#475569', fontWeight: 600, margin: '0 0 0.5rem' }}>No notifications yet</h3>
             <p style={{ color: '#334155', fontSize: '0.875rem', maxWidth: 360, margin: '0 auto', lineHeight: 1.7 }}>
-              Add Jira tickets to your watchlist. You'll be notified here when their MR status changes to <em>Ready for QA</em>.
+              Add Jira tickets to your watchlist. You'll be notified here whenever a ticket status changes in Jira.
             </p>
             <button
               onClick={() => navigate('/jira-watchlist')}
@@ -143,6 +150,7 @@ export default function NotificationsPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {notifications.map(notif => {
               const id = notif._id || notif.id
+              const badge = getNotificationBadge(notif.type)
               return (
                 <div
                   key={id}
@@ -164,10 +172,10 @@ export default function NotificationsPage() {
                   {/* Icon */}
                   <div style={{
                     width: 40, height: 40, borderRadius: '0.75rem', flexShrink: 0,
-                    background: notif.type === 'mr-merged' ? 'rgba(34,197,94,0.15)' : 'rgba(99,102,241,0.15)',
+                    background: badge.bg,
                     display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem',
                   }}>
-                    {notif.type === 'mr-merged' ? '✅' : '🔔'}
+                    {badge.icon}
                   </div>
 
                   {/* Content */}

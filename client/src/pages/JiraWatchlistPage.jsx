@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import { useAuth } from '../context/AuthContext'
-import { getWatchlist, syncWatchlist, addToWatchlist, removeFromWatchlist, getJiraConfig } from '../services/api'
+import { getWatchlist, syncWatchlist, addToWatchlist, removeFromWatchlist, getJiraConfig, getWatchlistCache } from '../services/api'
 
 function timeAgo(dateStr) {
   if (!dateStr) return 'Never'
@@ -16,18 +16,32 @@ function timeAgo(dateStr) {
 }
 
 const STATUS_STYLES = {
-  'Ready for QA': { bg: 'rgba(34,197,94,0.15)',   border: 'rgba(34,197,94,0.4)',   text: '#4ade80' },
-  'In QA':        { bg: 'rgba(34,197,94,0.15)',   border: 'rgba(34,197,94,0.4)',   text: '#4ade80' },
-  'Done':         { bg: 'rgba(99,102,241,0.15)',  border: 'rgba(99,102,241,0.3)',  text: '#818cf8' },
-  'Resolved':     { bg: 'rgba(99,102,241,0.15)',  border: 'rgba(99,102,241,0.3)',  text: '#818cf8' },
-  'Merged':       { bg: 'rgba(99,102,241,0.15)',  border: 'rgba(99,102,241,0.3)',  text: '#818cf8' },
-  'In Progress':  { bg: 'rgba(245,158,11,0.15)',  border: 'rgba(245,158,11,0.4)',  text: '#fbbf24' },
-  'Open':         { bg: 'rgba(100,116,139,0.15)', border: 'rgba(100,116,139,0.3)', text: '#64748b' },
-  'Unknown':      { bg: 'rgba(100,116,139,0.1)',  border: 'rgba(100,116,139,0.2)', text: '#475569' },
+  'To Be Released':          { bg: 'rgba(168,85,247,0.18)', border: 'rgba(168,85,247,0.45)', text: '#c084fc', icon: '🚀' },
+  'Released':                { bg: 'rgba(168,85,247,0.18)', border: 'rgba(168,85,247,0.45)', text: '#c084fc', icon: '🚀' },
+  'Closed':                  { bg: 'rgba(168,85,247,0.18)', border: 'rgba(168,85,247,0.45)', text: '#c084fc', icon: '🚀' },
+  'Released to Production': { bg: 'rgba(168,85,247,0.18)', border: 'rgba(168,85,247,0.45)', text: '#c084fc', icon: '🚀' },
+  'Ready for QA':            { bg: 'rgba(34,197,94,0.15)',   border: 'rgba(34,197,94,0.4)',   text: '#4ade80', icon: '🧪' },
+  'In QA':                   { bg: 'rgba(34,197,94,0.15)',   border: 'rgba(34,197,94,0.4)',   text: '#4ade80', icon: '🧪' },
+  'Done':                    { bg: 'rgba(99,102,241,0.15)',  border: 'rgba(99,102,241,0.3)',  text: '#818cf8', icon: '✅' },
+  'Resolved':                { bg: 'rgba(99,102,241,0.15)',  border: 'rgba(99,102,241,0.3)',  text: '#818cf8', icon: '✅' },
+  'Merged':                  { bg: 'rgba(99,102,241,0.15)',  border: 'rgba(99,102,241,0.3)',  text: '#818cf8', icon: '🔀' },
+  'In Progress':             { bg: 'rgba(245,158,11,0.15)',  border: 'rgba(245,158,11,0.4)',  text: '#fbbf24', icon: '⚡' },
+  'Open':                    { bg: 'rgba(100,116,139,0.15)', border: 'rgba(100,116,139,0.3)', text: '#64748b', icon: '⚪' },
+  'Unknown':                 { bg: 'rgba(100,116,139,0.1)',  border: 'rgba(100,116,139,0.2)', text: '#475569', icon: '❓' },
 }
 
 function getStatusStyle(status) {
-  return STATUS_STYLES[status] || STATUS_STYLES['Unknown']
+  if (!status) return STATUS_STYLES['Unknown']
+  const normalized = Object.keys(STATUS_STYLES).find(k => k.toLowerCase() === status.toLowerCase())
+  if (normalized) return STATUS_STYLES[normalized]
+
+  const lower = status.toLowerCase()
+  if (lower.includes('release') || lower.includes('closed') || lower.includes('prod')) {
+    return STATUS_STYLES['To Be Released']
+  }
+  if (lower.includes('qa')) return STATUS_STYLES['Ready for QA']
+  if (lower.includes('progress')) return STATUS_STYLES['In Progress']
+  return STATUS_STYLES['Unknown']
 }
 
 /** Client-side Jira ticket ID format check */
@@ -36,10 +50,10 @@ function isValidFormat(id) {
 }
 
 export default function JiraWatchlistPage() {
-  const { isAuthenticated, loading: authLoading } = useAuth()
+  const { user, isAuthenticated, loading: authLoading } = useAuth()
   const navigate = useNavigate()
 
-  const [watchlist, setWatchlist]   = useState([])
+  const [watchlist, setWatchlist]   = useState(() => getWatchlistCache(user?.id))
   const [jiraConfig, setJiraConfig] = useState(null)
   const [pageLoading, setPageLoading] = useState(true)
 
@@ -68,17 +82,19 @@ export default function JiraWatchlistPage() {
 
   const loadData = useCallback(async () => {
     try {
-      const [wlRes, cfgRes] = await Promise.allSettled([getWatchlist(), getJiraConfig()])
+      const [wlRes, cfgRes] = await Promise.allSettled([getWatchlist(user?.id), getJiraConfig()])
       if (wlRes.status  === 'fulfilled') setWatchlist(wlRes.value.watchlist || [])
       if (cfgRes.status === 'fulfilled') setJiraConfig(cfgRes.value.config)
-    } catch { /* handled by allSettled */ }
+    } catch {
+      const cached = getWatchlistCache(user?.id)
+      if (cached.length > 0) setWatchlist(cached)
+    }
     finally { setPageLoading(false) }
-  }, [])
+  }, [user?.id])
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) { navigate('/login'); return }
     if (!authLoading) loadData()
-  }, [isAuthenticated, authLoading, loadData, navigate])
+  }, [authLoading, loadData])
 
   /**
    * Validate format client-side, then call backend which validates against live Jira.
@@ -389,11 +405,13 @@ export default function JiraWatchlistPage() {
                   </div>
                   <div>
                     <span style={{
-                      padding: '0.2rem 0.6rem', borderRadius: '9999px',
+                      padding: '0.2rem 0.65rem', borderRadius: '9999px',
                       background: statusStyle.bg, border: `1px solid ${statusStyle.border}`,
                       color: statusStyle.text, fontSize: '0.72rem', fontWeight: 600, whiteSpace: 'nowrap',
+                      display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
                     }}>
-                      {item.currentStatus || 'Unknown'}
+                      <span>{statusStyle.icon}</span>
+                      <span>{item.currentStatus || 'Unknown'}</span>
                     </span>
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#475569' }}>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { getUserHistory, deleteHistoryItem } from '../services/api'
+import { getUserHistory, deleteHistoryItem, getUserHistoryCache } from '../services/api'
 import Navbar from '../components/Navbar'
 import ExportButton from '../components/ExportButton'
 import { exportTestCases, exportBugReport } from '../utils/exportUtils'
@@ -34,8 +34,11 @@ const S = {
 }
 
 export default function HistoryPage() {
-  const { isAuthenticated } = useAuth()
-  const [history, setHistory] = useState([])
+  const { user, isAuthenticated } = useAuth()
+  const [history, setHistory] = useState(() => {
+    if (!isAuthenticated) return getGuestHistory()
+    return getUserHistoryCache(user?.id)
+  })
   const [loading, setLoading] = useState(true)
   const [filter, setFilter]   = useState('all')
   const [expandedId, setExpandedId] = useState(null)
@@ -48,10 +51,12 @@ export default function HistoryPage() {
     }
     try {
       setLoading(true)
-      const res = await getUserHistory()
+      const res = await getUserHistory(user?.id)
       setHistory(res.history || [])
     } catch (err) {
       console.error('Failed to load user history:', err)
+      const cached = getUserHistoryCache(user?.id)
+      if (cached.length > 0) setHistory(cached)
     } finally {
       setLoading(false)
     }
@@ -59,7 +64,7 @@ export default function HistoryPage() {
 
   useEffect(() => {
     loadHistory()
-  }, [isAuthenticated])
+  }, [isAuthenticated, user?.id])
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this history item?')) return
@@ -69,7 +74,7 @@ export default function HistoryPage() {
       return
     }
     try {
-      await deleteHistoryItem(id)
+      await deleteHistoryItem(id, user?.id)
       setHistory((prev) => prev.filter((item) => (item.id !== id && item._id !== id)))
     } catch (err) {
       alert('Failed to delete item: ' + err.message)

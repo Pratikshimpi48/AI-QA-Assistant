@@ -75,17 +75,6 @@ const NAV_LINKS = [
     ),
   },
   {
-    id:   'nav-user-admin',
-    to:   '/admin/users',
-    label: 'User Admin',
-    adminOnly: true,
-    icon: (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-      </svg>
-    ),
-  },
-  {
     id:   'nav-settings',
     to:   '/settings',
     label: 'Settings',
@@ -136,9 +125,9 @@ export default function Navbar() {
       <nav
         style={{
           width: '100%',
-          maxWidth: '100%',
-          margin: 0,
-          padding: '0 1.5rem',
+          maxWidth: '1280px',
+          margin: '0 auto',
+          padding: '0 2rem',
           height: '4.25rem',
           display: 'flex',
           alignItems: 'center',
@@ -177,8 +166,8 @@ export default function Navbar() {
           </div>
         </Link>
 
-        {/* Center: Desktop Nav Links */}
-        <div id="nav-desktop-links" className="nav-desktop" style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', overflowX: 'auto' }}>
+        {/* Center: Desktop Nav Links (Centered in Header) */}
+        <div id="nav-desktop-links" className="nav-desktop" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', margin: '0 auto', justifyContent: 'center' }}>
           {visibleLinks.map((link) => (
             <NavLink
               key={link.id}

@@ -22,6 +22,43 @@ router.get('/', authenticateToken, async (req, res, next) => {
 })
 
 /**
+ * POST /api/history/sync-guest
+ * Protected - Migrate guest session history items to user account
+ */
+router.post('/sync-guest', authenticateToken, async (req, res, next) => {
+  try {
+    const { items = [] } = req.body
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.json({ status: 'ok', count: 0, message: 'No guest items to sync.' })
+    }
+
+    let syncedCount = 0
+    for (const item of items) {
+      if (item && item.type && item.title && item.data) {
+        await HistoryModel.create({
+          userId: req.user.id,
+          type:   item.type,
+          title:  item.title,
+          data:   item.data,
+          meta:   item.meta || {},
+        })
+        syncedCount++
+      }
+    }
+
+    const updatedHistory = await HistoryModel.findByUserId(req.user.id)
+    return res.json({
+      status:  'ok',
+      count:   syncedCount,
+      history: updatedHistory,
+      message: `Successfully migrated ${syncedCount} guest item(s) to your account.`,
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
+/**
  * DELETE /api/history/:id
  * Protected - delete specific history record belonging to current user
  */

@@ -10,12 +10,44 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-/* ── Request interceptor: Attach JWT token if stored ───── */
+/* ── Local Jira Credentials Storage Helpers ───────────────── */
+export function getLocalJiraConfig() {
+  try {
+    const raw = localStorage.getItem('ai_qa_jira_config')
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+export function saveLocalJiraConfig(config) {
+  try {
+    if (config) {
+      localStorage.setItem('ai_qa_jira_config', JSON.stringify({ ...config, connected: true }))
+    } else {
+      localStorage.removeItem('ai_qa_jira_config')
+    }
+  } catch (_e) {}
+}
+
+export function removeLocalJiraConfig() {
+  try {
+    localStorage.removeItem('ai_qa_jira_config')
+  } catch (_e) {}
+}
+
+/* ── Request interceptor: Attach JWT token & Jira headers if stored ───── */
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('ai_qa_token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
+    }
+    const localJira = getLocalJiraConfig()
+    if (localJira && localJira.jiraBaseUrl && localJira.jiraEmail && localJira.jiraApiToken) {
+      config.headers['X-Jira-Base-Url']  = localJira.jiraBaseUrl
+      config.headers['X-Jira-Email']     = localJira.jiraEmail
+      config.headers['X-Jira-Api-Token'] = localJira.jiraApiToken
     }
     return config
   },
@@ -72,13 +104,54 @@ export async function getDashboardStats() {
 }
 
 /** History APIs */
-export async function getUserHistory() {
-  const { data } = await api.get('/history')
+export function getUserHistoryCache(userId) {
+  try {
+    const key = userId ? `ai_qa_user_history_${userId}` : 'ai_qa_user_history_last'
+    const raw = localStorage.getItem(key) || localStorage.getItem('ai_qa_user_history_last')
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+export function saveUserHistoryCache(userId, history) {
+  try {
+    if (Array.isArray(history)) {
+      const serialized = JSON.stringify(history)
+      if (userId) localStorage.setItem(`ai_qa_user_history_${userId}`, serialized)
+      localStorage.setItem('ai_qa_user_history_last', serialized)
+    }
+  } catch (_e) {}
+}
+
+export async function getUserHistory(userId) {
+  try {
+    const { data } = await api.get('/history')
+    if (data && Array.isArray(data.history)) {
+      saveUserHistoryCache(userId, data.history)
+    }
+    return data
+  } catch (err) {
+    const cached = getUserHistoryCache(userId)
+    if (cached.length > 0) {
+      return { status: 'ok', history: cached, isCached: true }
+    }
+    throw err
+  }
+}
+
+export async function syncGuestHistory(guestItems) {
+  if (!Array.isArray(guestItems) || guestItems.length === 0) return { count: 0 }
+  const { data } = await api.post('/history/sync-guest', { items: guestItems })
   return data
 }
 
-export async function deleteHistoryItem(id) {
+export async function deleteHistoryItem(id, userId) {
   const { data } = await api.delete(`/history/${id}`)
+  // Remove from local cache as well
+  const cached = getUserHistoryCache(userId)
+  const updated = cached.filter(h => h.id !== id && h._id !== id)
+  saveUserHistoryCache(userId, updated)
   return data
 }
 
@@ -112,24 +185,110 @@ export async function checkHealth() {
 
 /* ── Jira Config APIs ──────────────────────────────────── */
 export async function getJiraConfig() {
-  const { data } = await api.get('/jira/config')
-  return data
+  try {
+    const { data } = await api.get('/jira/config')
+    if (data?.config?.connected) {
+      const local = getLocalJiraConfig() || {}
+      saveLocalJiraConfig({
+        jiraBaseUrl:  data.config.jiraBaseUrl,
+        jiraEmail:    data.config.jiraEmail,
+        jiraApiToken: local.jiraApiToken || '',
+        connected:    true,
+      })
+      return data
+    }
+  } catch (_err) {
+    /* ignore network / auth error and check local fallback */
+  }
+
+  const local = getLocalJiraConfig()
+  if (local && local.connected && local.jiraBaseUrl && local.jiraEmail) {
+    return {
+      status: 'ok',
+      config: {
+        jiraBaseUrl:     local.jiraBaseUrl,
+        jiraEmail:       local.jiraEmail,
+        connected:       true,
+        isLocalFallback: true,
+      },
+    }
+  }
+
+  return { status: 'ok', config: null }
 }
 
 export async function saveJiraConfig(payload) {
-  const { data } = await api.post('/jira/config', payload)
-  return data
+  saveLocalJiraConfig(payload)
+  try {
+    const { data } = await api.post('/jira/config', payload)
+    return data
+  } catch (err) {
+    const local = getLocalJiraConfig()
+    if (local) {
+      return {
+        status:  'ok',
+        config:  { jiraBaseUrl: local.jiraBaseUrl, jiraEmail: local.jiraEmail, connected: true },
+        message: 'Jira connected successfully.',
+      }
+    }
+    throw err
+  }
 }
 
 export async function deleteJiraConfig() {
-  const { data } = await api.delete('/jira/config')
-  return data
+  removeLocalJiraConfig()
+  try {
+    const { data } = await api.delete('/jira/config')
+    return data
+  } catch (_err) {
+    return { status: 'ok', message: 'Jira disconnected.' }
+  }
 }
 
 /* ── Jira Watchlist APIs ───────────────────────────────── */
-export async function getWatchlist() {
-  const { data } = await api.get('/jira/watchlist')
-  return data
+export function getWatchlistCache(userId) {
+  try {
+    const key = userId ? `ai_qa_watchlist_${userId}` : 'ai_qa_watchlist_guest'
+    const raw = localStorage.getItem(key) || localStorage.getItem('ai_qa_watchlist_guest')
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+export function saveWatchlistCache(userId, watchlist) {
+  try {
+    if (Array.isArray(watchlist)) {
+      const serialized = JSON.stringify(watchlist)
+      if (userId) localStorage.setItem(`ai_qa_watchlist_${userId}`, serialized)
+      localStorage.setItem('ai_qa_watchlist_guest', serialized)
+    }
+  } catch (_e) {}
+}
+
+export async function getWatchlist(userId) {
+  try {
+    const { data } = await api.get('/jira/watchlist')
+    if (data && Array.isArray(data.watchlist)) {
+      saveWatchlistCache(userId, data.watchlist)
+    }
+    return data
+  } catch (err) {
+    const cached = getWatchlistCache(userId)
+    if (cached.length > 0) {
+      return { status: 'ok', watchlist: cached, isCached: true }
+    }
+    throw err
+  }
+}
+
+export async function syncGuestWatchlist() {
+  try {
+    const { data } = await api.post('/jira/watchlist/sync-guest')
+    return data
+  } catch (_e) {
+    return { status: 'ok', count: 0 }
+  }
 }
 
 export async function syncWatchlist() {

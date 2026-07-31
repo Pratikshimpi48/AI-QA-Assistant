@@ -4,14 +4,16 @@ const mongoose = require('mongoose')
 const { getIsMongoConnected, memoryStore, saveDiskStore } = require('../config/db')
 
 const watchlistSchema = new mongoose.Schema({
-  userId:        { type: String, required: true, index: true },
-  jiraTicketId:  { type: String, required: true },
-  jiraBaseUrl:   { type: String, required: true },
-  summary:       { type: String, default: '' },
-  currentStatus: { type: String, default: 'Unknown' },
-  lastChecked:   { type: Date,   default: null },
-  notified:      { type: Boolean, default: false },
-  createdAt:     { type: Date, default: Date.now },
+  userId:             { type: String, required: true, index: true },
+  jiraTicketId:       { type: String, required: true },
+  jiraBaseUrl:        { type: String, required: true },
+  summary:            { type: String, default: '' },
+  currentStatus:      { type: String, default: 'Unknown' },
+  lastNotifiedStatus: { type: String, default: '' },
+  lastChecked:        { type: Date,   default: null },
+  notified:           { type: Boolean, default: false },
+  isReleased:         { type: Boolean, default: false },
+  createdAt:          { type: Date, default: Date.now },
 })
 
 const MongoWatchlist = mongoose.model('JiraWatchlist', watchlistSchema)
@@ -39,7 +41,7 @@ class JiraWatchlistModel {
     const memRec = {
       id, _id: id,
       userId: sUserId, jiraTicketId, jiraBaseUrl, summary, currentStatus,
-      lastChecked: null, notified: false,
+      lastNotifiedStatus: '', lastChecked: null, notified: false, isReleased: false,
       createdAt: new Date().toISOString(),
     }
 
@@ -78,11 +80,11 @@ class JiraWatchlistModel {
 
     if (getIsMongoConnected()) {
       try {
-        mongoActive = await MongoWatchlist.find({ notified: false })
+        mongoActive = await MongoWatchlist.find({ isReleased: { $ne: true } })
       } catch (err) { /* fallback */ }
     }
 
-    const memActive = memoryStore.watchlist.filter(w => !w.notified)
+    const memActive = memoryStore.watchlist.filter(w => !w.isReleased)
 
     const map = new Map()
     for (const item of [...memActive, ...mongoActive]) {
@@ -93,15 +95,20 @@ class JiraWatchlistModel {
     return Array.from(map.values())
   }
 
-  static async updateStatus(id, { summary, currentStatus, lastChecked, notified }) {
+  static async updateStatus(id, { summary, currentStatus, lastChecked, notified, lastNotifiedStatus, isReleased }) {
     const sId = String(id)
     let mongoUpdated = null
+
+    const updateFields = { summary, currentStatus, lastChecked }
+    if (notified !== undefined) updateFields.notified = notified
+    if (lastNotifiedStatus !== undefined) updateFields.lastNotifiedStatus = lastNotifiedStatus
+    if (isReleased !== undefined) updateFields.isReleased = isReleased
 
     if (getIsMongoConnected()) {
       try {
         mongoUpdated = await MongoWatchlist.findByIdAndUpdate(
           id,
-          { summary, currentStatus, lastChecked, notified },
+          updateFields,
           { new: true }
         )
       } catch (err) { /* ignore */ }
@@ -109,7 +116,7 @@ class JiraWatchlistModel {
 
     const idx = memoryStore.watchlist.findIndex(w => w.id === sId || String(w._id) === sId)
     if (idx !== -1) {
-      Object.assign(memoryStore.watchlist[idx], { summary, currentStatus, lastChecked, notified })
+      Object.assign(memoryStore.watchlist[idx], updateFields)
       saveDiskStore()
     }
 
@@ -135,6 +142,33 @@ class JiraWatchlistModel {
       return true
     }
     return true
+  }
+
+  static async migrateGuestItems(targetUserId) {
+    const sUserId = String(targetUserId)
+    let count = 0
+
+    if (getIsMongoConnected()) {
+      try {
+        const res = await MongoWatchlist.updateMany(
+          { userId: 'guest_session' },
+          { userId: sUserId }
+        )
+        count += (res.modifiedCount || 0)
+      } catch (err) {
+        console.warn('[JiraWatchlist] Mongo guest migration error:', err.message)
+      }
+    }
+
+    memoryStore.watchlist.forEach(w => {
+      if (w.userId === 'guest_session') {
+        w.userId = sUserId
+        count++
+      }
+    })
+
+    if (count > 0) saveDiskStore()
+    return count
   }
 }
 

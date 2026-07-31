@@ -59,8 +59,25 @@ function getIssueSummary(issue) {
  * Check if a Jira status means the MR has been merged / feature is ready for QA.
  */
 function isReadyForQA(status) {
-  const readyStatuses = env.JIRA_READY_STATUSES || ['Ready for QA', 'In QA', 'Done', 'Resolved', 'Merged']
+  const readyStatuses = env.JIRA_READY_STATUSES || ['Ready for QA', 'In QA', 'Done', 'Resolved', 'Merged', 'To Be Released', 'Released']
   return readyStatuses.some(s => s.toLowerCase() === (status || '').toLowerCase())
 }
 
-module.exports = { cleanJiraBaseUrl, fetchJiraIssue, getIssueStatus, getIssueSummary, isReadyForQA }
+/**
+ * Check if a Jira status means the ticket has reached final release stage ("To Be Released", "Released", "Closed").
+ */
+function isReleasedStatus(status) {
+  const s = (status || '').toLowerCase().trim()
+  const releaseKeywords = [
+    'to be released',
+    'released',
+    'closed',
+    'released to production',
+    'released to prod',
+    'production',
+    'live',
+  ]
+  return releaseKeywords.some(rel => s.includes(rel) || s === rel)
+}
+
+module.exports = { cleanJiraBaseUrl, fetchJiraIssue, getIssueStatus, getIssueSummary, isReadyForQA, isReleasedStatus }

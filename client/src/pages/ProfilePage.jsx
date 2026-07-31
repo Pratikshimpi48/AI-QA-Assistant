@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import { useAuth } from '../context/AuthContext'
+import { getAdminUsers, updateUserRole } from '../services/api'
 
 function formatDate(dateStr) {
   if (!dateStr) return 'N/A'
@@ -41,6 +42,12 @@ export default function ProfilePage() {
   const [passSaving, setPassSaving]                 = useState(false)
   const [passMsg, setPassMsg]                       = useState({ text: '', type: '' })
 
+  // Admin User Role Access State
+  const [adminUsers, setAdminUsers]                 = useState([])
+  const [adminLoading, setAdminLoading]             = useState(false)
+  const [adminMsg, setAdminMsg]                     = useState({ text: '', type: '' })
+  const [updatingUserId, setUpdatingUserId]         = useState(null)
+
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       navigate('/login')
@@ -50,8 +57,34 @@ export default function ProfilePage() {
       setName(user.name || '')
       setEmail(user.email || '')
       setDob(formatISOForInput(user.dob))
+
+      if (user.role === 'admin') {
+        setAdminLoading(true)
+        getAdminUsers()
+          .then(res => setAdminUsers(res.users || []))
+          .catch(err => setAdminMsg({ text: err.message, type: 'error' }))
+          .finally(() => setAdminLoading(false))
+      }
     }
   }, [user, isAuthenticated, authLoading, navigate])
+
+  const handleRoleToggle = async (targetUser) => {
+    const newRole = targetUser.role === 'admin' ? 'user' : 'admin'
+    const targetId = targetUser.id || targetUser._id
+    setUpdatingUserId(targetId)
+    setAdminMsg({ text: '', type: '' })
+
+    try {
+      const res = await updateUserRole(targetId, newRole)
+      setAdminMsg({ text: `✅ ${res.message || 'User role updated successfully!'}`, type: 'success' })
+      setAdminUsers(prev => prev.map(u => (u.id === targetId || u._id === targetId) ? { ...u, role: newRole } : u))
+      setTimeout(() => setAdminMsg({ text: '', type: '' }), 4000)
+    } catch (err) {
+      setAdminMsg({ text: `❌ ${err.message}`, type: 'error' })
+    } finally {
+      setUpdatingUserId(null)
+    }
+  }
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault()
@@ -378,6 +411,120 @@ export default function ProfilePage() {
           </div>
 
         </div>
+
+        {/* 👑 Administrator Panel: Organization User Role Access */}
+        {user?.role === 'admin' && (
+          <div style={{
+            marginTop: '2.5rem', borderRadius: '1rem', padding: '2rem',
+            background: 'var(--color-surface)', border: '1px solid rgba(234,179,8,0.3)',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                  <span style={{ fontSize: '1.3rem' }}>👑</span>
+                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text)' }}>
+                    Administrator Panel: Organization User Access
+                  </h3>
+                </div>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
+                  Manage registered organization accounts and grant/revoke Admin authority.
+                </p>
+              </div>
+
+              <span style={{
+                padding: '0.25rem 0.75rem', borderRadius: '9999px',
+                background: 'rgba(234,179,8,0.15)', border: '1px solid rgba(234,179,8,0.35)',
+                color: '#eab308', fontSize: '0.775rem', fontWeight: 700,
+              }}>
+                ⭐ Admin Authority Active
+              </span>
+            </div>
+
+            {adminMsg.text && (
+              <div style={{
+                padding: '0.75rem 1rem', borderRadius: '0.5rem', marginBottom: '1rem',
+                background: adminMsg.type === 'error' ? 'rgba(239,68,68,0.12)' : 'rgba(34,197,94,0.12)',
+                border: adminMsg.type === 'error' ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(34,197,94,0.3)',
+                color: adminMsg.type === 'error' ? '#f87171' : '#4ade80',
+                fontSize: '0.85rem', fontWeight: 600,
+              }}>
+                {adminMsg.text}
+              </div>
+            )}
+
+            {adminLoading ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>
+                Loading registered user accounts...
+              </div>
+            ) : adminUsers.length === 0 ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>
+                No other registered users found in database store.
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '0.75rem' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ background: 'rgba(255,255,255,0.04)', color: '#94a3b8', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                      <th style={{ padding: '0.75rem 1rem' }}>User</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Email</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Role</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Joined</th>
+                      <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {adminUsers.map((u, i) => {
+                      const uId = u.id || u._id
+                      const isAdmin = u.role === 'admin'
+                      const isSelf = u.email === user.email
+
+                      return (
+                        <tr key={uId || i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
+                          <td style={{ padding: '0.75rem 1rem', fontWeight: 600, color: '#ffffff' }}>
+                            {u.name} {isSelf ? ' (You)' : ''}
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem', color: '#cbd5e1' }}>
+                            {u.email}
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem' }}>
+                            <span style={{
+                              padding: '0.2rem 0.6rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 700,
+                              background: isAdmin ? 'rgba(234,179,8,0.15)' : 'rgba(148,163,184,0.15)',
+                              border: isAdmin ? '1px solid rgba(234,179,8,0.35)' : '1px solid rgba(148,163,184,0.3)',
+                              color: isAdmin ? '#eab308' : '#94a3b8',
+                            }}>
+                              {isAdmin ? '👑 Admin' : '👤 User'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.8rem' }}>
+                            {formatDate(u.createdAt)}
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
+                            <button
+                              onClick={() => handleRoleToggle(u)}
+                              disabled={updatingUserId === uId}
+                              style={{
+                                padding: '0.35rem 0.85rem', borderRadius: '0.5rem', fontSize: '0.775rem', fontWeight: 700,
+                                background: isAdmin ? 'rgba(239,68,68,0.12)' : 'rgba(234,179,8,0.15)',
+                                border: isAdmin ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(234,179,8,0.35)',
+                                color: isAdmin ? '#f87171' : '#eab308',
+                                cursor: updatingUserId === uId ? 'not-allowed' : 'pointer',
+                              }}
+                            >
+                              {updatingUserId === uId ? 'Updating...' : isAdmin ? 'Revoke Admin' : 'Grant Admin 👑'}
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
     </div>
   )
