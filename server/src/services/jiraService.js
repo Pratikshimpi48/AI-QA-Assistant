@@ -78,4 +78,69 @@ function isReleasedStatus(status) {
   return releaseKeywords.some(rel => s === rel || s.includes('to be released') || s === 'released')
 }
 
-module.exports = { cleanJiraBaseUrl, fetchJiraIssue, getIssueStatus, getIssueSummary, isReadyForQA, isReleasedStatus }
+/**
+ * Recursively extract plain text from Atlassian Document Format (ADF) nodes.
+ */
+function extractADFText(node) {
+  if (!node) return ''
+  if (typeof node === 'string') return node
+  if (node.type === 'text' && node.text) return node.text
+  if (Array.isArray(node.content)) {
+    return node.content.map(extractADFText).join(' ')
+  }
+  return ''
+}
+
+/**
+ * Extract structured ticket details for AI Work Log generation.
+ */
+function extractJiraTicketDetails(issue) {
+  if (!issue || !issue.fields) return null
+
+  const ticketId  = issue.key || ''
+  const summary   = issue.fields.summary || ''
+  const status    = issue.fields.status?.name || 'Unknown'
+  const issueType = issue.fields.issuetype?.name || 'Task'
+  const priority  = issue.fields.priority?.name || 'Medium'
+
+  let descriptionText = ''
+  if (typeof issue.fields.description === 'string') {
+    descriptionText = issue.fields.description
+  } else if (issue.fields.description && typeof issue.fields.description === 'object') {
+    descriptionText = extractADFText(issue.fields.description)
+  }
+
+  let commentsText = ''
+  const comments = issue.fields.comment?.comments
+  if (Array.isArray(comments) && comments.length > 0) {
+    commentsText = comments
+      .slice(-5)
+      .map(c => {
+        const author = c.author?.displayName || 'User'
+        const body   = typeof c.body === 'string' ? c.body : extractADFText(c.body)
+        return `[${author}]: ${body}`
+      })
+      .join('\n')
+  }
+
+  return {
+    ticketId,
+    summary,
+    status,
+    issueType,
+    priority,
+    descriptionText: descriptionText.trim(),
+    commentsText: commentsText.trim(),
+  }
+}
+
+module.exports = {
+  cleanJiraBaseUrl,
+  fetchJiraIssue,
+  getIssueStatus,
+  getIssueSummary,
+  isReadyForQA,
+  isReleasedStatus,
+  extractADFText,
+  extractJiraTicketDetails,
+}

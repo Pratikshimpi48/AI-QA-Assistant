@@ -14,6 +14,7 @@ import LoginPage                from './pages/LoginPage'
 import RegisterPage             from './pages/RegisterPage'
 import NotFoundPage             from './pages/NotFoundPage'
 import JiraWatchlistPage        from './pages/JiraWatchlistPage'
+import JiraWorklogPage          from './pages/JiraWorklogPage'
 import NotificationsPage        from './pages/NotificationsPage'
 import TemplateManagementPage   from './pages/TemplateManagementPage'
 import UserManagementPage       from './pages/UserManagementPage'
@@ -33,6 +34,7 @@ function App() {
           <Route path="/history"         element={<HistoryPage />} />
           <Route path="/settings"        element={<SettingsPage />} />
           <Route path="/templates"       element={<TemplateManagementPage />} />
+          <Route path="/jira-worklog"    element={<JiraWorklogPage />} />
           <Route path="/admin/users"     element={<ProtectedRoute><UserManagementPage /></ProtectedRoute>} />
           <Route path="/profile"         element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/jira-watchlist"  element={<ProtectedRoute><JiraWatchlistPage /></ProtectedRoute>} />

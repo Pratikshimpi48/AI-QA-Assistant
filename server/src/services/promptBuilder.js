@@ -196,4 +196,107 @@ function parseBugReportResponse(text) {
   }
 }
 
-module.exports = { buildPrompt, parseResponse, buildBugReportPrompt, parseBugReportResponse }
+function buildWorklogPrompt(jiraTicketData, userNotes = '', timeSpent = '') {
+  const systemPrompt = `You are a Principal QA Engineer. Your goal is to generate a professional, concise, and accurate daily Work Log Summary based on a Jira ticket's details, activities, and user notes.
+
+OUTPUT FORMAT — respond with a valid JSON object and NOTHING ELSE.
+No markdown code fences, no extra text. Only the raw JSON object.
+
+The JSON object MUST have these exact fields:
+{
+  "ticketId": "${jiraTicketData.ticketId || 'JIRA-123'}",
+  "summary": "${(jiraTicketData.summary || '').replace(/"/g, "'")}",
+  "status": "${jiraTicketData.status || 'In Progress'}",
+  "timeSpent": "${timeSpent || '1h 30m'}",
+  "worklogSummary": "Rich Markdown summary of QA activities performed...",
+  "bulletPoints": [
+    "Executed positive and boundary test cases for the feature workflow",
+    "Verified API payload validation and error handling on edge cases",
+    "Confirmed status update in Jira and reported findings"
+  ],
+  "formattedJiraWorklog": "*QA Work Log — [${jiraTicketData.ticketId || 'JIRA-123'}]*\\n• Executed positive and boundary test cases for the feature workflow\\n• Verified API payload validation and error handling\\n• Current Status: ${jiraTicketData.status || 'In Progress'}"
+}`
+
+  const userMessage = `Generate a professional QA Work Log for this Jira Ticket:
+Ticket ID: ${jiraTicketData.ticketId || ''}
+Summary: ${jiraTicketData.summary || ''}
+Status: ${jiraTicketData.status || ''}
+Issue Type: ${jiraTicketData.issueType || ''}
+Priority: ${jiraTicketData.priority || ''}
+Description: ${(jiraTicketData.descriptionText || 'No description provided.').slice(0, 3000)}
+Recent Activity / Comments: ${(jiraTicketData.commentsText || 'No recent comments.').slice(0, 3000)}
+Time Spent: ${timeSpent || 'Not specified'}
+User Notes / Manual Updates: ${userNotes || 'None'}`
+
+  return { systemPrompt, userMessage }
+}
+
+function parseWorklogResponse(text, ticketData = {}, timeSpent = '') {
+  if (!text || typeof text !== 'string') {
+    return {
+      ticketId: ticketData.ticketId || 'JIRA-TICKET',
+      summary: ticketData.summary || 'Work Log',
+      status: ticketData.status || 'In Progress',
+      timeSpent: timeSpent || '1h 30m',
+      worklogSummary: 'Performed QA testing and verification on feature.',
+      bulletPoints: ['Executed QA verification test suite', 'Confirmed functionality on environment'],
+      formattedJiraWorklog: `*QA Work Log — [${ticketData.ticketId || 'JIRA'}]*\n• Executed QA verification test suite\n• Confirmed functionality`,
+    }
+  }
+
+  const cleaned = text
+    .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```\s*$/, '')
+    .trim()
+
+  try {
+    const parsed = JSON.parse(cleaned)
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return {
+        ticketId:             parsed.ticketId || ticketData.ticketId || 'JIRA-TICKET',
+        summary:              parsed.summary || ticketData.summary || '',
+        status:               parsed.status || ticketData.status || 'In Progress',
+        timeSpent:            parsed.timeSpent || timeSpent || '1h 30m',
+        worklogSummary:       parsed.worklogSummary || 'Performed QA testing and verification.',
+        bulletPoints:         Array.isArray(parsed.bulletPoints) ? parsed.bulletPoints : [],
+        formattedJiraWorklog: parsed.formattedJiraWorklog || '',
+      }
+    }
+  } catch { /* continue */ }
+
+  const match = cleaned.match(/\{[\s\S]*\}/)
+  if (match) {
+    try {
+      const parsed = JSON.parse(match[0])
+      return {
+        ticketId:             parsed.ticketId || ticketData.ticketId || 'JIRA-TICKET',
+        summary:              parsed.summary || ticketData.summary || '',
+        status:               parsed.status || ticketData.status || 'In Progress',
+        timeSpent:            parsed.timeSpent || timeSpent || '1h 30m',
+        worklogSummary:       parsed.worklogSummary || 'Performed QA testing and verification.',
+        bulletPoints:         Array.isArray(parsed.bulletPoints) ? parsed.bulletPoints : [],
+        formattedJiraWorklog: parsed.formattedJiraWorklog || '',
+      }
+    } catch { /* continue */ }
+  }
+
+  return {
+    ticketId: ticketData.ticketId || 'JIRA-TICKET',
+    summary: ticketData.summary || 'QA Work Log',
+    status: ticketData.status || 'In Progress',
+    timeSpent: timeSpent || '1h 30m',
+    worklogSummary: cleaned.slice(0, 500),
+    bulletPoints: ['Executed QA testing on feature', 'Verified acceptance criteria'],
+    formattedJiraWorklog: `*QA Work Log — [${ticketData.ticketId || 'JIRA'}]*\n• Executed QA testing on feature\n• Verified acceptance criteria`,
+  }
+}
+
+module.exports = {
+  buildPrompt,
+  parseResponse,
+  buildBugReportPrompt,
+  parseBugReportResponse,
+  buildWorklogPrompt,
+  parseWorklogResponse,
+}

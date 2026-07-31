@@ -357,4 +357,30 @@ export async function updateUserRole(userId, role) {
   return data
 }
 
+/* ── Jira Work Log APIs ────────────────────────────────── */
+export async function getJiraTicketDetails(ticketId) {
+  const { data } = await api.get(`/jira/ticket/${ticketId}`)
+  return data
+}
+
+export async function generateJiraWorklog(payload) {
+  const { data } = await api.post('/jira/worklog/generate', payload)
+  return data
+}
+
+export async function saveJiraWorklog(payload) {
+  const { data } = await api.post('/jira/worklog/save', payload)
+  return data
+}
+
+export async function getJiraWorklogs() {
+  const { data } = await api.get('/jira/worklogs')
+  return data
+}
+
+export async function deleteJiraWorklog(id) {
+  const { data } = await api.delete(`/jira/worklogs/${id}`)
+  return data
+}
+
 export default api

@@ -5,7 +5,10 @@ const router             = express.Router()
 const { optionalAuth }   = require('../middleware/auth')
 const JiraConfigModel    = require('../models/JiraConfig')
 const JiraWatchlistModel = require('../models/JiraWatchlist')
-const { cleanJiraBaseUrl, fetchJiraIssue, getIssueStatus, getIssueSummary } = require('../services/jiraService')
+const WorklogModel       = require('../models/Worklog')
+const { cleanJiraBaseUrl, fetchJiraIssue, getIssueStatus, getIssueSummary, extractJiraTicketDetails } = require('../services/jiraService')
+const { generateTestCases } = require('../services/aiProvider')
+const { buildWorklogPrompt, parseWorklogResponse } = require('../services/promptBuilder')
 
 /** Helper to extract Jira credentials from user model or request headers */
 async function getEffectiveJiraConfig(req) {
@@ -339,6 +342,128 @@ router.delete('/watchlist/:id', optionalAuth, async (req, res, next) => {
     const deleted = await JiraWatchlistModel.deleteByIdAndUserId(req.params.id, uId)
     if (!deleted) return res.status(404).json({ status: 'error', message: 'Watchlist item not found.' })
     return res.json({ status: 'ok', message: 'Removed from watchlist.' })
+  } catch (err) { next(err) }
+})
+
+/* ──────────────────────────────────────────────────
+   Jira Work Log AI Generation & Persistence Routes
+──────────────────────────────────────────────────── */
+
+/**
+ * GET /api/jira/ticket/:ticketId — fetch detailed ticket info for work log context
+ */
+router.get('/ticket/:ticketId', optionalAuth, async (req, res, next) => {
+  try {
+    const config = await getEffectiveJiraConfig(req)
+    if (!config) {
+      return res.status(400).json({ status: 'error', message: 'Jira is not connected. Please save your Jira credentials in Settings.' })
+    }
+
+    const ticketId = req.params.ticketId.trim().toUpperCase()
+    const rawIssue = await fetchJiraIssue(config.jiraBaseUrl, ticketId, config.jiraEmail, config.jiraApiToken)
+    const details  = extractJiraTicketDetails(rawIssue)
+
+    if (!details) {
+      return res.status(404).json({ status: 'error', message: `Ticket ${ticketId} not found.` })
+    }
+
+    return res.json({ status: 'ok', ticket: { ...details, jiraBaseUrl: config.jiraBaseUrl } })
+  } catch (err) {
+    if (err.response?.status === 404) {
+      return res.status(404).json({ status: 'error', message: `Jira ticket ${req.params.ticketId} was not found.` })
+    }
+    if (err.response?.status === 401) {
+      return res.status(401).json({ status: 'error', message: 'Jira authentication failed. Please verify your API token in Settings.' })
+    }
+    next(err)
+  }
+})
+
+/**
+ * POST /api/jira/worklog/generate — generate AI work log summary based on Jira ticket
+ */
+router.post('/worklog/generate', optionalAuth, async (req, res, next) => {
+  try {
+    const { ticketId, ticketData, userNotes, timeSpent } = req.body
+    const config = await getEffectiveJiraConfig(req)
+
+    let finalTicketData = ticketData
+
+    if (!finalTicketData && ticketId && config) {
+      try {
+        const rawIssue = await fetchJiraIssue(config.jiraBaseUrl, ticketId, config.jiraEmail, config.jiraApiToken)
+        finalTicketData = extractJiraTicketDetails(rawIssue)
+      } catch (err) {
+        console.warn(`[WorklogGenerate] Fetch issue ${ticketId} warning:`, err.message)
+      }
+    }
+
+    if (!finalTicketData) {
+      finalTicketData = {
+        ticketId: ticketId || 'JIRA-TICKET',
+        summary: 'QA Testing & Issue Verification',
+        status: 'In Progress',
+        issueType: 'Task',
+        priority: 'Medium',
+        descriptionText: userNotes || '',
+        commentsText: '',
+      }
+    }
+
+    const { systemPrompt, userMessage } = buildWorklogPrompt(finalTicketData, userNotes, timeSpent)
+    const aiText = await generateTestCases(userMessage, systemPrompt)
+    const worklog = parseWorklogResponse(aiText, finalTicketData, timeSpent)
+
+    return res.json({ status: 'ok', worklog })
+  } catch (err) { next(err) }
+})
+
+/**
+ * POST /api/jira/worklog/save — save generated work log entry locally
+ */
+router.post('/worklog/save', optionalAuth, async (req, res, next) => {
+  try {
+    const uId = getUserId(req)
+    const { jiraTicketId, jiraBaseUrl, summary, timeSpent, worklogSummary, bulletPoints, formattedJiraWorklog } = req.body
+
+    if (!jiraTicketId || !worklogSummary) {
+      return res.status(400).json({ status: 'error', message: 'jiraTicketId and worklogSummary are required.' })
+    }
+
+    const record = await WorklogModel.create({
+      userId: uId,
+      jiraTicketId,
+      jiraBaseUrl,
+      summary,
+      timeSpent,
+      worklogSummary,
+      bulletPoints,
+      formattedJiraWorklog,
+    })
+
+    return res.status(201).json({ status: 'ok', worklog: record, message: 'Work log saved locally.' })
+  } catch (err) { next(err) }
+})
+
+/**
+ * GET /api/jira/worklogs — get user's saved work log history
+ */
+router.get('/worklogs', optionalAuth, async (req, res, next) => {
+  try {
+    const uId = getUserId(req)
+    const worklogs = await WorklogModel.findByUserId(uId)
+    return res.json({ status: 'ok', worklogs })
+  } catch (err) { next(err) }
+})
+
+/**
+ * DELETE /api/jira/worklogs/:id — delete a saved work log entry
+ */
+router.delete('/worklogs/:id', optionalAuth, async (req, res, next) => {
+  try {
+    const uId = getUserId(req)
+    await WorklogModel.deleteByIdAndUserId(req.params.id, uId)
+    return res.json({ status: 'ok', message: 'Work log entry deleted.' })
   } catch (err) { next(err) }
 })
 

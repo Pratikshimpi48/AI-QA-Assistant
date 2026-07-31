@@ -16,6 +16,7 @@ const memoryStore = {
   jiraConfigs:   [],  // { id, userId, jiraBaseUrl, jiraEmail, jiraApiToken, createdAt }
   watchlist:     [],  // { id, userId, jiraTicketId, summary, currentStatus, lastChecked, notified, createdAt }
   notifications: [],  // { id, userId, type, title, message, jiraTicketId, read, createdAt }
+  worklogs:      [],  // { id, userId, jiraTicketId, summary, timeSpent, worklogSummary, formattedJiraWorklog, createdAt }
 }
 
 /** Load fallback database from disk if file exists */
@@ -30,6 +31,7 @@ function loadDiskStore() {
       memoryStore.jiraConfigs   = Array.isArray(data.jiraConfigs) ? data.jiraConfigs : []
       memoryStore.watchlist     = Array.isArray(data.watchlist) ? data.watchlist : []
       memoryStore.notifications = Array.isArray(data.notifications) ? data.notifications : []
+      memoryStore.worklogs      = Array.isArray(data.worklogs) ? data.worklogs : []
       console.log(`📦 Loaded ${memoryStore.users.length} user(s) & local data from memory_db.json`)
     }
   } catch (err) {
@@ -58,6 +60,7 @@ function saveDiskStore() {
       jiraConfigs:   memoryStore.jiraConfigs || [],
       watchlist:     memoryStore.watchlist || [],
       notifications: memoryStore.notifications || [],
+      worklogs:      memoryStore.worklogs || [],
     }
 
     const tmpFile = DB_FILE_PATH + '.tmp'
