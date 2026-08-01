@@ -486,54 +486,129 @@ export default function JiraWorklogPage() {
               </div>
             </div>
 
-            {/* Comments Inspector Box */}
-            <div style={{ marginBottom: '1.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.25rem' }}>
-                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  💬 {ticketDetails.userCommentsCount || ticketDetails.commentsList?.length || 0} Comment(s) Posted by You ({jiraEmail || 'Connected Account'})
-                </span>
-                {ticketDetails.totalCommentsCount > (ticketDetails.userCommentsCount || ticketDetails.commentsList?.length || 0) && (
-                  <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
-                    ({ticketDetails.totalCommentsCount - (ticketDetails.userCommentsCount || 0)} comment(s) from other users excluded)
-                  </span>
-                )}
+            {/* HALF-AND-HALF 2-COLUMN GRID FOR COMMENTS & GENERATED WORK LOG */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.5rem' }}>
+              
+              {/* LEFT HALF: COMMENTS POSTED BY YOU */}
+              <div style={{
+                background: 'rgba(30, 41, 59, 0.4)', border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '0.75rem', padding: '1.15rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+              }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem', flexWrap: 'wrap', gap: '0.25rem' }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      💬 Comments Posted by You ({jiraEmail || 'Connected Account'})
+                    </span>
+                    {ticketDetails.totalCommentsCount > (ticketDetails.userCommentsCount || ticketDetails.commentsList?.length || 0) && (
+                      <span style={{ fontSize: '0.68rem', color: '#64748b' }}>
+                        ({ticketDetails.totalCommentsCount - (ticketDetails.userCommentsCount || 0)} from others excluded)
+                      </span>
+                    )}
+                  </div>
+
+                  {ticketDetails.commentsList && ticketDetails.commentsList.length > 0 ? (
+                    <div style={{
+                      display: 'flex', flexDirection: 'column', gap: '0.6rem',
+                      maxHeight: '260px', overflowY: 'auto', paddingRight: '0.25rem',
+                    }}>
+                      {ticketDetails.commentsList.map((c, idx) => (
+                        <div key={idx} style={{
+                          padding: '0.65rem 0.85rem', borderRadius: '0.5rem',
+                          background: 'rgba(34, 197, 94, 0.06)', border: '1px solid rgba(34, 197, 94, 0.2)',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4ade80' }}>
+                              👤 {c.author} (You)
+                            </span>
+                            {c.dateStr && (
+                              <span style={{ fontSize: '0.68rem', color: '#64748b' }}>
+                                {c.dateStr}
+                              </span>
+                            )}
+                          </div>
+                          <p style={{ fontSize: '0.78rem', color: '#cbd5e1', margin: 0, lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
+                            {c.body}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ padding: '2.5rem 1rem', borderRadius: '0.5rem', background: 'rgba(0,0,0,0.2)', color: '#94a3b8', fontSize: '0.8rem', textAlign: 'center' }}>
+                      💬 No comments posted by your account on this ticket yet. AI will generate summary using ticket context.
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {ticketDetails.commentsList && ticketDetails.commentsList.length > 0 ? (
-                <div style={{
-                  display: 'flex', flexDirection: 'column', gap: '0.6rem',
-                  maxHeight: '220px', overflowY: 'auto', paddingRight: '0.25rem',
-                }}>
-                  {ticketDetails.commentsList.map((c, idx) => (
-                    <div key={idx} style={{
-                      padding: '0.7rem 0.9rem', borderRadius: '0.5rem',
-                      background: 'rgba(34, 197, 94, 0.06)', border: '1px solid rgba(34, 197, 94, 0.2)',
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#4ade80' }}>
-                          👤 {c.author} (You)
-                        </span>
-                        {c.dateStr && (
-                          <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
-                            {c.dateStr}
-                          </span>
-                        )}
+              {/* RIGHT HALF: FORMATTED JIRA COMMENT (READY TO PASTE) */}
+              <div style={{
+                background: 'rgba(30, 41, 59, 0.4)', border: '1px solid rgba(56, 189, 248, 0.25)',
+                borderRadius: '0.75rem', padding: '1.15rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+              }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      💬 Formatted Jira Comment (Ready to Paste)
+                    </span>
+
+                    {generatedWorklog && (
+                      <div style={{ display: 'flex', gap: '0.4rem' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyClipboard(editableJiraFormat || editableSummary)}
+                          style={{
+                            padding: '0.35rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.72rem', fontWeight: 700,
+                            background: 'rgba(56, 189, 248, 0.2)', border: '1px solid rgba(56, 189, 248, 0.4)',
+                            color: '#38bdf8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem',
+                          }}
+                        >
+                          <span>📋 Copy</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleSaveLog}
+                          disabled={savingLog}
+                          style={{
+                            padding: '0.35rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.72rem', fontWeight: 700,
+                            background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', border: 'none',
+                            color: '#ffffff', cursor: savingLog ? 'not-allowed' : 'pointer', opacity: savingLog ? 0.7 : 1,
+                            display: 'flex', alignItems: 'center', gap: '0.25rem', boxShadow: '0 2px 10px rgba(34,197,94,0.3)',
+                          }}
+                        >
+                          <span>{savingLog ? 'Saving...' : '💾 Save'}</span>
+                        </button>
                       </div>
-                      <p style={{ fontSize: '0.8rem', color: '#cbd5e1', margin: 0, lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
-                        {c.body}
-                      </p>
+                    )}
+                  </div>
+
+                  {generatedWorklog ? (
+                    <textarea
+                      rows={10}
+                      value={editableJiraFormat || editableSummary}
+                      onChange={e => {
+                        setEditableJiraFormat(e.target.value)
+                        setEditableSummary(e.target.value)
+                      }}
+                      style={{
+                        width: '100%', padding: '0.85rem', borderRadius: '0.5rem',
+                        background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(56, 189, 248, 0.35)',
+                        color: '#f8fafc', fontSize: '0.85rem', outline: 'none', lineHeight: 1.5,
+                        resize: 'vertical', boxSizing: 'border-box', fontFamily: 'monospace',
+                      }}
+                    />
+                  ) : (
+                    <div style={{ padding: '2.5rem 1rem', borderRadius: '0.5rem', background: 'rgba(0,0,0,0.2)', color: '#64748b', fontSize: '0.82rem', textAlign: 'center' }}>
+                      ✨ Click <strong>"Generate Work Description from Comments"</strong> below to evaluate your comments and generate the formatted comment here.
                     </div>
-                  ))}
+                  )}
                 </div>
-              ) : (
-                <div style={{ padding: '1rem', borderRadius: '0.5rem', background: 'rgba(0,0,0,0.2)', color: '#94a3b8', fontSize: '0.8rem', textAlign: 'center' }}>
-                  💬 No comments posted by your account on this ticket yet. AI will generate summary using ticket context.
-                </div>
-              )}
+              </div>
+
             </div>
 
             {/* TWO ACTION BUTTONS */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: generatedWorklog ? '1.5rem' : 0 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               
               {/* BUTTON 1: Generate Work Description */}
               <button
@@ -572,62 +647,6 @@ export default function JiraWorklogPage() {
               </button>
 
             </div>
-
-            {/* GENERATED FORMATTED JIRA COMMENT EDITOR (INTEGRATED DIRECTLY IN STEP 2) */}
-            {generatedWorklog && (
-              <div style={{
-                marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.1)',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <label style={{ fontSize: '0.82rem', fontWeight: 800, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0 }}>
-                    💬 Formatted Jira Comment (Ready to Paste)
-                  </label>
-
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyClipboard(editableJiraFormat || editableSummary)}
-                      style={{
-                        padding: '0.45rem 0.95rem', borderRadius: '0.5rem', fontSize: '0.78rem', fontWeight: 700,
-                        background: 'rgba(56, 189, 248, 0.2)', border: '1px solid rgba(56, 189, 248, 0.4)',
-                        color: '#38bdf8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem',
-                      }}
-                    >
-                      <span>📋 Copy Comment</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleSaveLog}
-                      disabled={savingLog}
-                      style={{
-                        padding: '0.45rem 0.95rem', borderRadius: '0.5rem', fontSize: '0.78rem', fontWeight: 700,
-                        background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', border: 'none',
-                        color: '#ffffff', cursor: savingLog ? 'not-allowed' : 'pointer', opacity: savingLog ? 0.7 : 1,
-                        display: 'flex', alignItems: 'center', gap: '0.35rem', boxShadow: '0 2px 10px rgba(34,197,94,0.3)',
-                      }}
-                    >
-                      <span>{savingLog ? 'Saving...' : '💾 Save Entry'}</span>
-                    </button>
-                  </div>
-                </div>
-
-                <textarea
-                  rows={10}
-                  value={editableJiraFormat || editableSummary}
-                  onChange={e => {
-                    setEditableJiraFormat(e.target.value)
-                    setEditableSummary(e.target.value)
-                  }}
-                  style={{
-                    width: '100%', padding: '0.9rem', borderRadius: '0.75rem',
-                    background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(56, 189, 248, 0.35)',
-                    color: '#f8fafc', fontSize: '0.875rem', outline: 'none', lineHeight: 1.55,
-                    resize: 'vertical', boxSizing: 'border-box', fontFamily: 'monospace',
-                  }}
-                />
-              </div>
-            )}
           </div>
         )}
 
