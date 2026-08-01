@@ -29,25 +29,25 @@ export default function JiraWorklogPage() {
   const [jiraBaseUrl, setJiraBaseUrl]     = useState('')
   const [jiraEmail, setJiraEmail]         = useState('')
 
-  // Watchlist & Ticket selection
+  // Step 1: Watchlist & Ticket selection
   const [watchlist, setWatchlist]         = useState([])
   const [selectedTicketId, setSelectedTicketId] = useState('')
   const [ticketInput, setTicketInput]     = useState('')
   const [ticketDetails, setTicketDetails] = useState(null)
   const [fetchingTicket, setFetchingTicket] = useState(false)
 
-  // Inputs: Time & Date
+  // Step 2: Inputs (Date, Time, User Notes)
   const [timeSpent, setTimeSpent]         = useState('1h 30m')
   const [worklogDate, setWorklogDate]     = useState(() => new Date().toISOString().split('T')[0])
   const [userNotes, setUserNotes]         = useState('')
 
-  // AI Worklog Result & Editor
+  // Step 3: AI Worklog Result & Editor
   const [generating, setGenerating]       = useState(false)
   const [generatedWorklog, setGeneratedWorklog] = useState(null)
   const [editableSummary, setEditableSummary]   = useState('')
   const [editableJiraFormat, setEditableJiraFormat] = useState('')
 
-  // History & Toast
+  // History & Toast Notifications
   const [savedLogs, setSavedLogs]         = useState([])
   const [savingLog, setSavingLog]         = useState(false)
   const [toastMsg, setToastMsg]           = useState('')
@@ -85,9 +85,10 @@ export default function JiraWorklogPage() {
 
   const showToast = (msg) => {
     setToastMsg(msg)
-    setTimeout(() => setToastMsg(''), 3500)
+    setTimeout(() => setToastMsg(''), 4000)
   }
 
+  // STEP 1 HANDLER: Fetch Ticket Details & User Comments
   const handleFetchTicket = async (tId) => {
     const targetId = (tId || ticketInput || selectedTicketId).trim().toUpperCase()
     if (!targetId) {
@@ -96,20 +97,24 @@ export default function JiraWorklogPage() {
     }
     setErrorMsg('')
     setFetchingTicket(true)
+    setGeneratedWorklog(null) // Reset step 3 on new fetch
+
     try {
       const res = await getJiraTicketDetails(targetId)
       if (res?.ticket) {
         setTicketDetails(res.ticket)
         setSelectedTicketId(res.ticket.ticketId)
         setTicketInput(res.ticket.ticketId)
+        showToast(`✅ Fetched ticket ${res.ticket.ticketId}! Auto-opened configuration form below.`)
       }
     } catch (err) {
-      setErrorMsg(err.response?.data?.message || `Failed to fetch ticket ${targetId}.`)
+      setErrorMsg(err.response?.data?.message || `Failed to fetch ticket ${targetId}. Please check credentials in Settings.`)
     } finally {
       setFetchingTicket(false)
     }
   }
 
+  // STEP 2 - BUTTON 1 HANDLER: Generate Work Description from Comments
   const handleGenerate = async () => {
     const targetId = (selectedTicketId || ticketInput).trim().toUpperCase()
     if (!targetId && !ticketDetails) {
@@ -134,12 +139,36 @@ export default function JiraWorklogPage() {
         setGeneratedWorklog(res.worklog)
         setEditableSummary(res.worklog.worklogSummary || '')
         setEditableJiraFormat(res.worklog.formattedJiraWorklog || '')
-        showToast('✨ Work Description generated from ticket comments!')
+        showToast('✨ Work Description generated! Review and edit your summary below.')
       }
     } catch (err) {
       setErrorMsg(err.response?.data?.message || 'Failed to generate work log summary.')
     } finally {
       setGenerating(false)
+    }
+  }
+
+  // STEP 2 - BUTTON 2 HANDLER: Post Work Log on Jira (User-Initiated)
+  const handlePostToJira = () => {
+    const formattedText = editableJiraFormat || editableSummary || generatedWorklog?.formattedJiraWorklog || ''
+    if (!formattedText) {
+      showToast('⚠️ Please click "Generate Work Description" first before posting to Jira.')
+      return
+    }
+
+    // 1. Copy formatted work log to user's clipboard
+    navigator.clipboard.writeText(formattedText)
+
+    // 2. Open Jira Ticket Page in a new browser tab for 1-click manual paste
+    const targetTicketId = ticketDetails?.ticketId || selectedTicketId || ticketInput
+    const baseUrl = ticketDetails?.jiraBaseUrl || jiraBaseUrl
+    const ticketUrl = baseUrl ? `${baseUrl}/browse/${targetTicketId}` : null
+
+    if (ticketUrl) {
+      window.open(ticketUrl, '_blank')
+      showToast(`🚀 Copied Work Log to clipboard & opened ${targetTicketId} in Jira!`)
+    } else {
+      showToast('📋 Copied Work Log to clipboard! (Connect Jira in Settings to auto-open ticket URL)')
     }
   }
 
@@ -187,24 +216,25 @@ export default function JiraWorklogPage() {
     <div style={{ background: 'var(--color-bg)', minHeight: '100vh' }}>
       <Navbar />
       <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '7.5rem 1.5rem 4rem' }}>
+        
         {/* Toast Notification */}
         {toastMsg && (
           <div style={{
             position: 'fixed', bottom: '2rem', right: '2rem', zIndex: 9999,
-            background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(99, 102, 241, 0.4)',
+            background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(99, 102, 241, 0.5)',
             borderRadius: '0.75rem', padding: '0.9rem 1.25rem', color: '#f8fafc',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.5), 0 0 15px rgba(99,102,241,0.2)',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.6), 0 0 15px rgba(99,102,241,0.25)',
             fontSize: '0.875rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem',
           }}>
             <span>{toastMsg}</span>
           </div>
         )}
 
-        {/* Header */}
+        {/* Page Header */}
         <div style={{ marginBottom: '2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
             <div style={{
-              width: 42, height: 42, borderRadius: '0.75rem',
+              width: 44, height: 44, borderRadius: '0.75rem',
               background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '1.4rem', boxShadow: '0 0 16px rgba(99,102,241,0.4)',
@@ -213,15 +243,15 @@ export default function JiraWorklogPage() {
             </div>
             <div>
               <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#f8fafc', margin: 0, letterSpacing: '-0.02em' }}>
-                AI Work Log & Description Generator
+                Jira Work Log Assistant
               </h1>
               <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: 0 }}>
-                Synthesize a professional Work Description based on all comments posted on your Jira ticket, set work log date, and edit before saving.
+                Fetch your posted Jira comments, set work log date & time spent, and generate your personalized Work Description.
               </p>
             </div>
           </div>
 
-          {/* Jira Connection Status Banner */}
+          {/* Connection Status Banner */}
           <div style={{
             marginTop: '1.25rem', padding: '0.85rem 1.25rem', borderRadius: '0.75rem',
             background: jiraConnected ? 'rgba(34, 197, 94, 0.08)' : 'rgba(245, 158, 11, 0.08)',
@@ -232,7 +262,7 @@ export default function JiraWorklogPage() {
               <span style={{ fontSize: '1.1rem' }}>{jiraConnected ? '🟢' : '⚠️'}</span>
               <span style={{ fontSize: '0.85rem', fontWeight: 600, color: jiraConnected ? '#4ade80' : '#fbbf24' }}>
                 {jiraConnected
-                  ? `Connected to ${jiraBaseUrl} (${jiraEmail})`
+                  ? `Connected as ${jiraEmail} (${jiraBaseUrl})`
                   : 'Jira is not connected. Connect in Settings to auto-fetch live ticket comments.'}
               </span>
             </div>
@@ -261,23 +291,22 @@ export default function JiraWorklogPage() {
           </div>
         )}
 
-        {/* Main Generator Layout */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.9fr)', gap: '1.5rem', marginBottom: '2.5rem' }}>
-          
-          {/* Left Column: Ticket Selection & Inputs */}
-          <div style={{
-            background: 'rgba(15, 23, 42, 0.75)', border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '1rem', padding: '1.5rem', backdropFilter: 'blur(12px)',
-          }}>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f8fafc', margin: '0 0 1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span>🎫 Select or Enter Jira Ticket</span>
-            </h2>
+        {/* STEP 1: INITIAL TICKET ID INPUT FIELD & FETCH BUTTON */}
+        <div style={{
+          background: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(99, 102, 241, 0.25)',
+          borderRadius: '1rem', padding: '1.75rem', marginBottom: '2rem', backdropFilter: 'blur(16px)',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+        }}>
+          <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#f8fafc', margin: '0 0 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span>1️⃣ Step 1: Enter Jira Ticket ID</span>
+          </h2>
 
-            {/* Watchlist Dropdown */}
+          <div style={{ display: 'grid', gridTemplateColumns: watchlist.length > 0 ? '1fr 1.2fr' : '1fr', gap: '1.25rem', alignItems: 'end' }}>
+            {/* Watchlist Quick Picker */}
             {watchlist.length > 0 && (
-              <div style={{ marginBottom: '1.25rem' }}>
+              <div>
                 <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Pick from your Jira Watchlist
+                  Pick from Watchlist
                 </label>
                 <select
                   value={selectedTicketId}
@@ -288,12 +317,12 @@ export default function JiraWorklogPage() {
                     if (val) handleFetchTicket(val)
                   }}
                   style={{
-                    width: '100%', padding: '0.65rem 0.85rem', borderRadius: '0.5rem',
+                    width: '100%', padding: '0.75rem 0.85rem', borderRadius: '0.5rem',
                     background: 'rgba(30, 41, 59, 0.8)', border: '1px solid rgba(255, 255, 255, 0.12)',
-                    color: '#f8fafc', fontSize: '0.85rem', outline: 'none', cursor: 'pointer',
+                    color: '#f8fafc', fontSize: '0.875rem', outline: 'none', cursor: 'pointer',
                   }}
                 >
-                  <option value="">-- Choose from Watchlist ({watchlist.length} tickets) --</option>
+                  <option value="">-- Select from Watchlist ({watchlist.length} tickets) --</option>
                   {watchlist.map(item => (
                     <option key={item._id || item.id} value={item.jiraTicketId}>
                       [{item.jiraTicketId}] {item.summary ? item.summary.slice(0, 45) : 'Ticket'} ({item.currentStatus || 'Status'})
@@ -303,21 +332,21 @@ export default function JiraWorklogPage() {
               </div>
             )}
 
-            {/* Manual Input + Fetch */}
-            <div style={{ marginBottom: '1.25rem' }}>
+            {/* Ticket ID Input + Fetch Button */}
+            <div>
               <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Or Enter Ticket ID (e.g. ASB-2239)
+                Jira Ticket ID
               </label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', gap: '0.6rem' }}>
                 <input
                   type="text"
                   value={ticketInput}
                   onChange={e => setTicketInput(e.target.value.toUpperCase())}
-                  placeholder="ASB-2239"
+                  placeholder="e.g. ASB-2239"
                   style={{
-                    flex: 1, padding: '0.65rem 0.85rem', borderRadius: '0.5rem',
-                    background: 'rgba(30, 41, 59, 0.8)', border: '1px solid rgba(255, 255, 255, 0.12)',
-                    color: '#f8fafc', fontSize: '0.875rem', outline: 'none', fontFamily: 'monospace', fontWeight: 700,
+                    flex: 1, padding: '0.75rem 1rem', borderRadius: '0.5rem',
+                    background: 'rgba(30, 41, 59, 0.8)', border: '1px solid rgba(99, 102, 241, 0.3)',
+                    color: '#f8fafc', fontSize: '0.95rem', outline: 'none', fontFamily: 'monospace', fontWeight: 800,
                   }}
                 />
                 <button
@@ -325,19 +354,55 @@ export default function JiraWorklogPage() {
                   onClick={() => handleFetchTicket(ticketInput)}
                   disabled={fetchingTicket || !ticketInput.trim()}
                   style={{
-                    padding: '0.65rem 1rem', borderRadius: '0.5rem', fontSize: '0.82rem', fontWeight: 700,
-                    background: 'rgba(99, 102, 241, 0.2)', border: '1px solid rgba(99, 102, 241, 0.4)',
-                    color: '#818cf8', cursor: fetchingTicket || !ticketInput.trim() ? 'not-allowed' : 'pointer',
-                    opacity: fetchingTicket || !ticketInput.trim() ? 0.5 : 1, whiteSpace: 'nowrap',
+                    padding: '0.75rem 1.35rem', borderRadius: '0.5rem', fontSize: '0.875rem', fontWeight: 700,
+                    background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', border: 'none',
+                    color: '#ffffff', cursor: fetchingTicket || !ticketInput.trim() ? 'not-allowed' : 'pointer',
+                    opacity: fetchingTicket || !ticketInput.trim() ? 0.6 : 1, whiteSpace: 'nowrap',
+                    boxShadow: '0 4px 16px rgba(99, 102, 241, 0.35)',
                   }}
                 >
                   {fetchingTicket ? 'Fetching...' : '🔍 Fetch Comments'}
                 </button>
               </div>
             </div>
+          </div>
+        </div>
 
-            {/* Date & Time Spent Inputs Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+        {/* STEP 2: AUTO-OPENED WORK LOG CONFIGURATION FORM & USER COMMENTS INSPECTOR */}
+        {ticketDetails && (
+          <div style={{
+            background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(34, 197, 94, 0.3)',
+            borderRadius: '1rem', padding: '1.75rem', marginBottom: '2.5rem', backdropFilter: 'blur(16px)',
+            boxShadow: '0 12px 35px rgba(0,0,0,0.5), 0 0 20px rgba(34,197,94,0.1)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span>2️⃣ Step 2: Work Log Details & Comments Inspector</span>
+              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <span style={{
+                  padding: '0.25rem 0.75rem', borderRadius: '9999px',
+                  background: 'rgba(99, 102, 241, 0.2)', border: '1px solid rgba(99, 102, 241, 0.4)',
+                  color: '#818cf8', fontSize: '0.8rem', fontWeight: 800, fontFamily: 'monospace',
+                }}>
+                  [{ticketDetails.ticketId}]
+                </span>
+                <span style={{
+                  padding: '0.25rem 0.75rem', borderRadius: '9999px',
+                  background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.3)',
+                  color: '#60a5fa', fontSize: '0.78rem', fontWeight: 700,
+                }}>
+                  {ticketDetails.status}
+                </span>
+              </div>
+            </div>
+
+            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#f1f5f9', margin: '0 0 1.25rem', lineHeight: 1.4 }}>
+              {ticketDetails.summary}
+            </h3>
+
+            {/* Inputs Grid: Date, Time Spent & Notes */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr', gap: '1rem', marginBottom: '1.5rem' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   📅 Work Log Date
@@ -347,9 +412,9 @@ export default function JiraWorklogPage() {
                   value={worklogDate}
                   onChange={e => setWorklogDate(e.target.value)}
                   style={{
-                    width: '100%', padding: '0.65rem 0.85rem', borderRadius: '0.5rem',
-                    background: 'rgba(30, 41, 59, 0.8)', border: '1px solid rgba(255, 255, 255, 0.12)',
-                    color: '#f8fafc', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box',
+                    width: '100%', padding: '0.7rem 0.85rem', borderRadius: '0.5rem',
+                    background: 'rgba(30, 41, 59, 0.9)', border: '1px solid rgba(255, 255, 255, 0.12)',
+                    color: '#f8fafc', fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box',
                   }}
                 />
               </div>
@@ -364,176 +429,140 @@ export default function JiraWorklogPage() {
                   onChange={e => setTimeSpent(e.target.value)}
                   placeholder="e.g. 2h 30m, 45m, 1d"
                   style={{
-                    width: '100%', padding: '0.65rem 0.85rem', borderRadius: '0.5rem',
-                    background: 'rgba(30, 41, 59, 0.8)', border: '1px solid rgba(255, 255, 255, 0.12)',
+                    width: '100%', padding: '0.7rem 0.85rem', borderRadius: '0.5rem',
+                    background: 'rgba(30, 41, 59, 0.9)', border: '1px solid rgba(255, 255, 255, 0.12)',
+                    color: '#f8fafc', fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  📝 Extra Notes (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={userNotes}
+                  onChange={e => setUserNotes(e.target.value)}
+                  placeholder="e.g. Verified API response timing"
+                  style={{
+                    width: '100%', padding: '0.7rem 0.85rem', borderRadius: '0.5rem',
+                    background: 'rgba(30, 41, 59, 0.9)', border: '1px solid rgba(255, 255, 255, 0.12)',
                     color: '#f8fafc', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box',
                   }}
                 />
               </div>
             </div>
 
-            {/* Additional Manual Work Notes */}
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                📝 Additional Notes / Specific Context (Optional)
-              </label>
-              <textarea
-                rows={3}
-                value={userNotes}
-                onChange={e => setUserNotes(e.target.value)}
-                placeholder="e.g. Added additional observation regarding backend API timing."
-                style={{
-                  width: '100%', padding: '0.75rem', borderRadius: '0.5rem',
-                  background: 'rgba(30, 41, 59, 0.8)', border: '1px solid rgba(255, 255, 255, 0.12)',
-                  color: '#f8fafc', fontSize: '0.82rem', outline: 'none', resize: 'vertical', boxSizing: 'border-box',
-                }}
-              />
-            </div>
+            {/* Comments Inspector Box */}
+            <div style={{ marginBottom: '1.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.25rem' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  💬 {ticketDetails.userCommentsCount || ticketDetails.commentsList?.length || 0} Comment(s) Posted by You ({jiraEmail || 'Connected Account'})
+                </span>
+                {ticketDetails.totalCommentsCount > (ticketDetails.userCommentsCount || ticketDetails.commentsList?.length || 0) && (
+                  <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                    ({ticketDetails.totalCommentsCount - (ticketDetails.userCommentsCount || 0)} comment(s) from other users excluded)
+                  </span>
+                )}
+              </div>
 
-            {/* Action Button */}
-            <button
-              type="button"
-              onClick={handleGenerate}
-              disabled={generating}
-              style={{
-                width: '100%', padding: '0.85rem 1.25rem', borderRadius: '0.75rem',
-                background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
-                border: 'none', color: '#ffffff', fontSize: '0.95rem', fontWeight: 700,
-                cursor: generating ? 'not-allowed' : 'pointer', opacity: generating ? 0.7 : 1,
-                boxShadow: '0 4px 20px rgba(99, 102, 241, 0.4)', transition: 'all 0.2s',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-              }}
-            >
-              {generating ? (
-                <span>✨ Analyzing Comments & Generating Work Description...</span>
-              ) : (
-                <span>✨ Generate Work Description from Comments</span>
-              )}
-            </button>
-          </div>
-
-          {/* Right Column: Ticket Comments Preview Inspector */}
-          <div style={{
-            background: 'rgba(15, 23, 42, 0.75)', border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '1rem', padding: '1.5rem', backdropFilter: 'blur(12px)',
-            display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-          }}>
-            <div>
-              <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#f8fafc', margin: '0 0 1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span>👤 Comments Posted by You (Filtered: {jiraEmail || 'Your Account'})</span>
-              </h2>
-
-              {ticketDetails ? (
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                    <a
-                      href={ticketDetails.jiraBaseUrl ? `${ticketDetails.jiraBaseUrl}/browse/${ticketDetails.ticketId}` : '#'}
-                      target="_blank" rel="noopener noreferrer"
-                      style={{ fontSize: '1.1rem', fontWeight: 800, color: '#818cf8', textDecoration: 'none' }}
-                    >
-                      {ticketDetails.ticketId} ↗
-                    </a>
-                    <span style={{
-                      padding: '0.2rem 0.65rem', borderRadius: '9999px',
-                      background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)',
-                      color: '#60a5fa', fontSize: '0.75rem', fontWeight: 700,
+              {ticketDetails.commentsList && ticketDetails.commentsList.length > 0 ? (
+                <div style={{
+                  display: 'flex', flexDirection: 'column', gap: '0.6rem',
+                  maxHeight: '220px', overflowY: 'auto', paddingRight: '0.25rem',
+                }}>
+                  {ticketDetails.commentsList.map((c, idx) => (
+                    <div key={idx} style={{
+                      padding: '0.7rem 0.9rem', borderRadius: '0.5rem',
+                      background: 'rgba(34, 197, 94, 0.06)', border: '1px solid rgba(34, 197, 94, 0.2)',
                     }}>
-                      {ticketDetails.status}
-                    </span>
-                  </div>
-
-                  <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f1f5f9', margin: '0 0 0.75rem', lineHeight: 1.4 }}>
-                    {ticketDetails.summary}
-                  </h3>
-
-                  {/* Comments Inspector Box */}
-                  {ticketDetails.commentsList && ticketDetails.commentsList.length > 0 ? (
-                    <div style={{ marginTop: '0.75rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem', flexWrap: 'wrap', gap: '0.25rem' }}>
-                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                          ✅ {ticketDetails.userCommentsCount || ticketDetails.commentsList.length} Comment(s) Posted by You
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#4ade80' }}>
+                          👤 {c.author} (You)
                         </span>
-                        {ticketDetails.totalCommentsCount > (ticketDetails.userCommentsCount || ticketDetails.commentsList.length) && (
-                          <span style={{ fontSize: '0.68rem', color: '#64748b' }}>
-                            ({ticketDetails.totalCommentsCount - ticketDetails.commentsList.length} from other users excluded)
+                        {c.dateStr && (
+                          <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                            {c.dateStr}
                           </span>
                         )}
                       </div>
-                      <div style={{
-                        display: 'flex', flexDirection: 'column', gap: '0.6rem',
-                        maxHeight: '260px', overflowY: 'auto', paddingRight: '0.25rem',
-                      }}>
-                        {ticketDetails.commentsList.map((c, idx) => (
-                          <div key={idx} style={{
-                            padding: '0.65rem 0.85rem', borderRadius: '0.5rem',
-                            background: 'rgba(34, 197, 94, 0.06)', border: '1px solid rgba(34, 197, 94, 0.2)',
-                          }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4ade80' }}>
-                                👤 {c.author} (You)
-                              </span>
-                              {c.dateStr && (
-                                <span style={{ fontSize: '0.68rem', color: '#64748b' }}>
-                                  {c.dateStr}
-                                </span>
-                              )}
-                            </div>
-                            <p style={{ fontSize: '0.78rem', color: '#cbd5e1', margin: 0, lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
-                              {c.body}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
+                      <p style={{ fontSize: '0.8rem', color: '#cbd5e1', margin: 0, lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
+                        {c.body}
+                      </p>
                     </div>
-                  ) : ticketDetails.totalCommentsCount > 0 ? (
-                    <div style={{ padding: '1.25rem', borderRadius: '0.5rem', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: '#fbbf24', fontSize: '0.8rem', textAlign: 'center' }}>
-                      💬 {ticketDetails.totalCommentsCount} comment(s) exist on this ticket, but none were posted by your account ({jiraEmail}). Comments from other users are excluded.
-                    </div>
-                  ) : (
-                    <div style={{ padding: '1.25rem', borderRadius: '0.5rem', background: 'rgba(0,0,0,0.2)', color: '#94a3b8', fontSize: '0.8rem', textAlign: 'center' }}>
-                      💬 No posted comments found on this ticket yet.
-                    </div>
-                  )}
+                  ))}
                 </div>
               ) : (
-                <div style={{ padding: '3rem 1rem', textAlign: 'center', color: '#64748b' }}>
-                  <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>💬</div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#94a3b8' }}>No comments loaded</div>
-                  <p style={{ fontSize: '0.78rem', color: '#475569', marginTop: '0.25rem', lineHeight: 1.5 }}>
-                    Select or enter a Jira Ticket ID and click "Fetch Comments" to inspect all user comments posted on that ticket.
-                  </p>
+                <div style={{ padding: '1rem', borderRadius: '0.5rem', background: 'rgba(0,0,0,0.2)', color: '#94a3b8', fontSize: '0.8rem', textAlign: 'center' }}>
+                  💬 No comments posted by your account on this ticket yet. AI will generate summary using ticket context.
                 </div>
               )}
             </div>
 
-            <div style={{
-              marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.06)',
-              fontSize: '0.72rem', color: '#475569', lineHeight: 1.5,
-            }}>
-              🔒 <strong>Read-Only Jira Safety</strong>: Comments are fetched via read-only GET requests. Generated Work Descriptions are saved locally and copied to your clipboard.
+            {/* TWO ACTION BUTTONS */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              
+              {/* BUTTON 1: Generate Work Description */}
+              <button
+                type="button"
+                onClick={handleGenerate}
+                disabled={generating}
+                style={{
+                  padding: '0.85rem 1.25rem', borderRadius: '0.75rem',
+                  background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+                  border: 'none', color: '#ffffff', fontSize: '0.9rem', fontWeight: 800,
+                  cursor: generating ? 'not-allowed' : 'pointer', opacity: generating ? 0.7 : 1,
+                  boxShadow: '0 4px 20px rgba(99, 102, 241, 0.4)', transition: 'all 0.2s',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                }}
+              >
+                {generating ? (
+                  <span>✨ Evaluating Comments...</span>
+                ) : (
+                  <span>✨ Generate Work Description from Comments</span>
+                )}
+              </button>
+
+              {/* BUTTON 2: Post Work Log to Jira (Frontend 1-Click Copy & Open) */}
+              <button
+                type="button"
+                onClick={handlePostToJira}
+                style={{
+                  padding: '0.85rem 1.25rem', borderRadius: '0.75rem',
+                  background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                  border: 'none', color: '#ffffff', fontSize: '0.9rem', fontWeight: 800,
+                  cursor: 'pointer', boxShadow: '0 4px 20px rgba(34, 197, 94, 0.4)',
+                  transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                }}
+              >
+                <span>🚀 Post Work Log on Jira</span>
+              </button>
+
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Interactive Review & Edit Work Description Section */}
+        {/* STEP 3: INTERACTIVE WORK DESCRIPTION & SUMMARY EDITOR (REVEALED UPON GENERATION) */}
         {generatedWorklog && (
           <div style={{
-            background: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(99, 102, 241, 0.3)',
+            background: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(99, 102, 241, 0.35)',
             borderRadius: '1rem', padding: '1.75rem', marginBottom: '3rem', backdropFilter: 'blur(16px)',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.6), 0 0 20px rgba(99,102,241,0.15)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.6), 0 0 25px rgba(99,102,241,0.2)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <span style={{ fontSize: '1.2rem' }}>✏️</span>
                 <div>
                   <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#f8fafc', margin: 0 }}>
-                    Verify & Edit Work Description — [{generatedWorklog.ticketId}]
+                    3️⃣ Step 3: Verify & Edit Work Description Summary
                   </h2>
                   <span style={{ fontSize: '0.75rem', color: '#818cf8', fontWeight: 600 }}>
-                    Log Date: {worklogDate} | Time Spent: {timeSpent}
+                    [{generatedWorklog.ticketId}] | Log Date: {worklogDate} | Time Spent: {timeSpent}
                   </span>
                 </div>
               </div>
+
               <div style={{ display: 'flex', gap: '0.6rem' }}>
                 <button
                   type="button"
@@ -544,8 +573,9 @@ export default function JiraWorklogPage() {
                     color: '#818cf8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem',
                   }}
                 >
-                  <span>📋 Copy Work Description</span>
+                  <span>📋 Copy Summary</span>
                 </button>
+
                 <button
                   type="button"
                   onClick={handleSaveLog}
@@ -563,10 +593,10 @@ export default function JiraWorklogPage() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '1.25rem' }}>
-              {/* Editable Work Description */}
+              {/* Editable Work Description Summary */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#818cf8', marginBottom: '0.4rem', textTransform: 'uppercase' }}>
-                  Work Description (AI Summary Generated from Ticket Comments)
+                  Work Description Summary (Editable — Add / Adjust your updates)
                 </label>
                 <textarea
                   rows={10}
@@ -581,7 +611,7 @@ export default function JiraWorklogPage() {
                 />
               </div>
 
-              {/* Editable Formatted Jira Comment Block */}
+              {/* Formatted Jira Comment */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#38bdf8', marginBottom: '0.4rem', textTransform: 'uppercase' }}>
                   Formatted Jira Comment (Ready to Paste)
@@ -602,7 +632,7 @@ export default function JiraWorklogPage() {
           </div>
         )}
 
-        {/* Saved Work Log History Section */}
+        {/* SAVED WORK LOG HISTORY SECTION */}
         <div style={{
           background: 'rgba(15, 23, 42, 0.75)', border: '1px solid rgba(255, 255, 255, 0.08)',
           borderRadius: '1rem', padding: '1.5rem', backdropFilter: 'blur(12px)',
@@ -702,6 +732,7 @@ export default function JiraWorklogPage() {
             </div>
           )}
         </div>
+
       </div>
     </div>
   )
