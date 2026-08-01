@@ -137,4 +137,67 @@ async function generate({ requirements, fileName, fileContent, provider, model, 
   }
 }
 
-module.exports = { generate, PROVIDERS }
+/**
+ * Generate completion text for a custom prompt using Gemini (or Groq fallback).
+ * @param {string} userMessage
+ * @param {string} systemPrompt
+ * @returns {Promise<string>}
+ */
+async function generateCustomPrompt(userMessage, systemPrompt) {
+  const chosenProvider = resolveProvider()
+  let lastErr = null
+
+  if (chosenProvider === PROVIDERS.GEMINI) {
+    try {
+      const genAI = new (require('@google/generative-ai').GoogleGenerativeAI)(process.env.GEMINI_API_KEY)
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-flash-latest',
+        systemInstruction: systemPrompt,
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 4096,
+          responseMimeType: 'application/json',
+        },
+      })
+      const result = await model.generateContent(userMessage)
+      let text = ''
+      try {
+        text = result.response.text()
+      } catch {
+        const candidate = result.response?.candidates?.[0]
+        const part = candidate?.content?.parts?.find(p => p.text)
+        text = part?.text || ''
+      }
+      if (text.trim()) return text.trim()
+    } catch (err) {
+      console.warn('[AI] Gemini custom completion warning:', err.message)
+      lastErr = err
+    }
+  }
+
+  // Fallback to Groq
+  if (process.env.GROQ_API_KEY) {
+    try {
+      const Groq = require('groq-sdk')
+      const client = new Groq({ apiKey: process.env.GROQ_API_KEY })
+      const completion = await client.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
+        temperature: 0.3,
+        max_tokens: 4096,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage },
+        ],
+      })
+      const text = completion.choices?.[0]?.message?.content ?? ''
+      if (text.trim()) return text.trim()
+    } catch (err) {
+      console.warn('[AI] Groq custom completion warning:', err.message)
+      lastErr = err
+    }
+  }
+
+  throw lastErr || new Error('AI provider failed to generate completion.')
+}
+
+module.exports = { generate, generateCustomPrompt, PROVIDERS }

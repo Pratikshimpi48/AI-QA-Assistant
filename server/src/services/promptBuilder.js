@@ -198,7 +198,7 @@ function parseBugReportResponse(text) {
 
 function buildWorklogPrompt(jiraTicketData, userNotes = '', timeSpent = '', worklogDate = '') {
   const safeTicketId = jiraTicketData.ticketId || 'JIRA-123'
-  const safeSummary  = (jiraTicketData.summary || '').replace(/"/g, "'")
+  const safeSummary  = (jiraTicketData.summary || '').replace(/"/g, "'").replace(/\n/g, ' ')
   const safeStatus   = jiraTicketData.status || 'In Progress'
 
   const systemPrompt = `You are a Principal Software Engineer & QA Leader. Your task is to generate a concise, professional Work Description summary BASED PRIMARILY AND EXCLUSIVELY ON THE COMMENTS POSTED ON THE JIRA TICKET.
@@ -213,17 +213,17 @@ No markdown code fences, no extra text. Only the raw JSON object.
 
 The JSON object MUST have these exact fields:
 {
-  "ticketId": "${safeTicketId}",
-  "summary": "${safeSummary}",
-  "status": "${safeStatus}",
-  "timeSpent": "${timeSpent || '1h 30m'}",
-  "worklogDate": "${worklogDate || new Date().toISOString().split('T')[0]}",
+  "ticketId": "TICKET-ID",
+  "summary": "Ticket Summary",
+  "status": "In Progress",
+  "timeSpent": "1h 30m",
+  "worklogDate": "2026-07-31",
   "worklogSummary": "Rich Markdown Work Description synthesizing the work updates and details from ticket comments...",
   "bulletPoints": [
     "Key work update extracted from ticket comments",
     "Verification or implementation detail noted in discussion"
   ],
-  "formattedJiraWorklog": "*Work Log — [${safeTicketId}] (${worklogDate || 'Today'})*\\n• Synthesized update based on ticket comments\\n• Current Status: ${safeStatus}"
+  "formattedJiraWorklog": "*Work Log — [TICKET-ID] (2026-07-31)*\\n• Synthesized update based on ticket comments\\n• Current Status: In Progress"
 }`
 
   const userMessage = `Synthesize a professional Work Description for this Jira Ticket based on all comments and updates posted by Jira users:

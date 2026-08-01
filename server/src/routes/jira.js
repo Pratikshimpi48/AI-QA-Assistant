@@ -7,7 +7,7 @@ const JiraConfigModel    = require('../models/JiraConfig')
 const JiraWatchlistModel = require('../models/JiraWatchlist')
 const WorklogModel       = require('../models/Worklog')
 const { cleanJiraBaseUrl, fetchJiraIssue, getIssueStatus, getIssueSummary, extractJiraTicketDetails } = require('../services/jiraService')
-const { generateTestCases } = require('../services/aiProvider')
+const { generateCustomPrompt } = require('../services/aiProvider')
 const { buildWorklogPrompt, parseWorklogResponse } = require('../services/promptBuilder')
 
 /** Helper to extract Jira credentials from user model or request headers */
@@ -411,7 +411,7 @@ router.post('/worklog/generate', optionalAuth, async (req, res, next) => {
     }
 
     const { systemPrompt, userMessage } = buildWorklogPrompt(finalTicketData, userNotes, timeSpent, worklogDate)
-    const aiText = await generateTestCases(userMessage, systemPrompt)
+    const aiText = await generateCustomPrompt(userMessage, systemPrompt)
     const worklog = parseWorklogResponse(aiText, finalTicketData, timeSpent)
     if (worklogDate) worklog.worklogDate = worklogDate
 
