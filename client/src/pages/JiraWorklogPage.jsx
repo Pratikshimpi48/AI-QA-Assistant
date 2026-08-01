@@ -36,10 +36,21 @@ export default function JiraWorklogPage() {
   const [ticketDetails, setTicketDetails] = useState(null)
   const [fetchingTicket, setFetchingTicket] = useState(false)
 
-  // Step 2: Inputs (Date, Time, User Notes)
-  const [timeSpent, setTimeSpent]         = useState('1h 30m')
+  // Step 2: Inputs (Date, Hours, Minutes, User Notes)
+  const [timeHours, setTimeHours]         = useState('1')
+  const [timeMinutes, setTimeMinutes]     = useState('30')
   const [worklogDate, setWorklogDate]     = useState(() => new Date().toISOString().split('T')[0])
   const [userNotes, setUserNotes]         = useState('')
+
+  const getTimeSpentString = () => {
+    const h = parseInt(timeHours, 10) || 0
+    const m = parseInt(timeMinutes, 10) || 0
+    if (h === 0 && m === 0) return '0m'
+    const parts = []
+    if (h > 0) parts.push(`${h}h`)
+    if (m > 0) parts.push(`${m}m`)
+    return parts.join(' ')
+  }
 
   // Step 3: AI Worklog Result & Editor
   const [generating, setGenerating]       = useState(false)
@@ -131,7 +142,7 @@ export default function JiraWorklogPage() {
         ticketId: targetId,
         ticketData: ticketDetails,
         userNotes,
-        timeSpent,
+        timeSpent: getTimeSpentString(),
         worklogDate,
       })
 
@@ -187,7 +198,7 @@ export default function JiraWorklogPage() {
         jiraTicketId: targetId,
         jiraBaseUrl: ticketDetails?.jiraBaseUrl || jiraBaseUrl,
         summary: ticketDetails?.summary || generatedWorklog.summary,
-        timeSpent,
+        timeSpent: getTimeSpentString(),
         worklogDate,
         worklogSummary: editableSummary,
         bulletPoints: generatedWorklog.bulletPoints || [],
@@ -401,8 +412,8 @@ export default function JiraWorklogPage() {
               {ticketDetails.summary}
             </h3>
 
-            {/* Inputs Grid: Date, Time Spent & Notes */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr', gap: '1rem', marginBottom: '1.5rem' }}>
+            {/* Inputs Grid: Date, Hours, Minutes & Notes */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.8fr 0.8fr 1.3fr', gap: '1rem', marginBottom: '1.5rem' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   📅 Work Log Date
@@ -421,13 +432,34 @@ export default function JiraWorklogPage() {
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  ⏱️ Time Spent
+                  ⏱️ Hours (h)
                 </label>
                 <input
-                  type="text"
-                  value={timeSpent}
-                  onChange={e => setTimeSpent(e.target.value)}
-                  placeholder="e.g. 2h 30m, 45m, 1d"
+                  type="number"
+                  min="0"
+                  max="24"
+                  value={timeHours}
+                  onChange={e => setTimeHours(e.target.value)}
+                  placeholder="1"
+                  style={{
+                    width: '100%', padding: '0.7rem 0.85rem', borderRadius: '0.5rem',
+                    background: 'rgba(30, 41, 59, 0.9)', border: '1px solid rgba(255, 255, 255, 0.12)',
+                    color: '#f8fafc', fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  ⏱️ Minutes (m)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="59"
+                  value={timeMinutes}
+                  onChange={e => setTimeMinutes(e.target.value)}
+                  placeholder="30"
                   style={{
                     width: '100%', padding: '0.7rem 0.85rem', borderRadius: '0.5rem',
                     background: 'rgba(30, 41, 59, 0.9)', border: '1px solid rgba(255, 255, 255, 0.12)',
