@@ -12,6 +12,7 @@ import {
   deleteJiraWorklog,
   deleteJiraCommentOnJira,
   postJiraWorklogDirect,
+  deleteJiraWorklogDirectFromJira,
 } from '../services/api'
 
 function timeAgo(dateStr) {
@@ -241,17 +242,20 @@ export default function JiraWorklogPage() {
       showToast('🚀 Posting official Worklog to Jira Time Tracking...')
       
       // 1. Direct Jira REST API Worklog Post (Time spent, Date started, Work description ADF)
-      await postJiraWorklogDirect({
+      const postRes = await postJiraWorklogDirect({
         ticketId: targetTicketId,
         timeSpent: calcTimeSpent,
         worklogDate,
         workDescription: formattedText,
       })
 
+      const returnedJiraWorklogId = postRes?.jiraWorklogId || postRes?.result?.id || ''
+
       // 2. Auto-save work log to local database & refresh history
       try {
         const payload = {
           jiraTicketId: targetTicketId,
+          jiraWorklogId: returnedJiraWorklogId,
           jiraBaseUrl: ticketDetails?.jiraBaseUrl || jiraBaseUrl,
           summary: ticketDetails?.summary || generatedWorklog?.summary,
           timeSpent: calcTimeSpent,
@@ -302,6 +306,37 @@ export default function JiraWorklogPage() {
       setErrorMsg(err.response?.data?.message || 'Failed to save work log.')
     } finally {
       setSavingLog(false)
+    }
+  }
+
+  const handleDeletePostedWorklog = async (log) => {
+    const localId = log._id || log.id
+    const targetTicketId = log.jiraTicketId
+    const jiraWlId = log.jiraWorklogId
+
+    const confirmMsg = jiraWlId
+      ? `Are you sure you want to delete this posted work log entry from Jira ticket [${targetTicketId}] and local history?`
+      : `Are you sure you want to remove this work log entry from local history?`
+    
+    if (!window.confirm(confirmMsg)) return
+
+    try {
+      // 1. If linked to Jira worklog ID, delete from Jira REST API Time Tracking
+      if (jiraWlId && targetTicketId) {
+        try {
+          await deleteJiraWorklogDirectFromJira(targetTicketId, jiraWlId)
+          showToast(`🗑 Work log entry deleted from Jira ticket ${targetTicketId}!`)
+        } catch (err) {
+          console.warn('[DeleteWorklogJira] Error deleting from Jira:', err.message)
+        }
+      }
+
+      // 2. Delete local database entry
+      await deleteJiraWorklog(localId)
+      setSavedLogs(prev => prev.filter(l => (l._id || l.id) !== localId))
+      showToast(`Removed entry [${targetTicketId}] from history.`)
+    } catch (err) {
+      setErrorMsg(err.response?.data?.message || 'Failed to delete work log entry.')
     }
   }
 
@@ -910,15 +945,16 @@ export default function JiraWorklogPage() {
                           📋 Copy
                         </button>
                         <button
-                          onClick={() => handleDeleteLog(id)}
-                          title="Delete Entry"
+                          onClick={() => handleDeletePostedWorklog(log)}
+                          title={log.jiraWorklogId ? "Delete worklog from Jira & local history" : "Delete from local history"}
                           style={{
                             padding: '0.3rem 0.65rem', borderRadius: '0.375rem', fontSize: '0.75rem',
-                            background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)',
-                            color: '#f87171', cursor: 'pointer',
+                            background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)',
+                            color: '#f87171', cursor: 'pointer', fontWeight: 600,
+                            display: 'flex', alignItems: 'center', gap: '0.25rem',
                           }}
                         >
-                          🗑 Delete
+                          <span>🗑 {log.jiraWorklogId ? 'Delete from Jira' : 'Delete'}</span>
                         </button>
                       </div>
                     </div>

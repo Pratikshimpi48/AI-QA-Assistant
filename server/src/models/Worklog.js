@@ -6,6 +6,7 @@ const { getIsMongoConnected, memoryStore, saveDiskStore } = require('../config/d
 const worklogSchema = new mongoose.Schema({
   userId:               { type: String, required: true, index: true },
   jiraTicketId:         { type: String, required: true },
+  jiraWorklogId:        { type: String, default: '' },
   jiraBaseUrl:          { type: String, default: '' },
   summary:              { type: String, default: '' },
   timeSpent:            { type: String, default: '' },
@@ -23,7 +24,7 @@ class WorklogModel {
     return 'wl_log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5)
   }
 
-  static async create({ userId, jiraTicketId, jiraBaseUrl = '', summary = '', timeSpent = '', worklogDate = '', worklogSummary, bulletPoints = [], formattedJiraWorklog = '' }) {
+  static async create({ userId, jiraTicketId, jiraWorklogId = '', jiraBaseUrl = '', summary = '', timeSpent = '', worklogDate = '', worklogSummary, bulletPoints = [], formattedJiraWorklog = '' }) {
     const sUserId = String(userId)
     let mongoRec = null
     const finalDate = worklogDate || new Date().toISOString().split('T')[0]
@@ -33,6 +34,7 @@ class WorklogModel {
         const rec = new MongoWorklog({
           userId: sUserId,
           jiraTicketId,
+          jiraWorklogId,
           jiraBaseUrl,
           summary,
           timeSpent,
@@ -53,6 +55,7 @@ class WorklogModel {
       id, _id: id,
       userId: sUserId,
       jiraTicketId,
+      jiraWorklogId,
       jiraBaseUrl,
       summary,
       timeSpent,

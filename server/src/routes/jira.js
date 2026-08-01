@@ -6,7 +6,7 @@ const { optionalAuth }   = require('../middleware/auth')
 const JiraConfigModel    = require('../models/JiraConfig')
 const JiraWatchlistModel = require('../models/JiraWatchlist')
 const WorklogModel       = require('../models/Worklog')
-const { cleanJiraBaseUrl, fetchJiraIssue, getIssueStatus, getIssueSummary, extractJiraTicketDetails, deleteJiraComment, postJiraWorklog } = require('../services/jiraService')
+const { cleanJiraBaseUrl, fetchJiraIssue, getIssueStatus, getIssueSummary, extractJiraTicketDetails, deleteJiraComment, postJiraWorklog, deleteJiraWorklogFromJira } = require('../services/jiraService')
 const { generateCustomPrompt } = require('../services/aiProvider')
 const { buildWorklogPrompt, parseWorklogResponse } = require('../services/promptBuilder')
 
@@ -430,13 +430,39 @@ router.post('/worklog/post-to-jira', optionalAuth, async (req, res, next) => {
       config.jiraApiToken
     )
 
-    return res.json({ status: 'ok', message: `Worklog successfully posted to Jira ticket ${ticketId}`, result })
+    const jiraWorklogId = result?.id || result?.worklogId || ''
+    return res.json({ status: 'ok', message: `Worklog successfully posted to Jira ticket ${ticketId}`, jiraWorklogId, result })
   } catch (err) {
     if (err.response?.status === 400) {
       return res.status(400).json({ status: 'error', message: err.response?.data?.errorMessages?.[0] || 'Invalid Jira worklog payload.' })
     }
     if (err.response?.status === 403 || err.response?.status === 401) {
       return res.status(403).json({ status: 'error', message: 'Permission denied on Jira to post worklog.' })
+    }
+    next(err)
+  }
+})
+
+/**
+ * DELETE /api/jira/ticket/:ticketId/worklog/:worklogId — user-initiated deletion of posted worklog from Jira
+ */
+router.delete('/ticket/:ticketId/worklog/:worklogId', optionalAuth, async (req, res, next) => {
+  try {
+    const config = await getEffectiveJiraConfig(req)
+    if (!config || !config.jiraApiToken) {
+      return res.status(400).json({ status: 'error', message: 'Jira API credentials not configured in Settings.' })
+    }
+
+    const { ticketId, worklogId } = req.params
+    await deleteJiraWorklogFromJira(config.jiraBaseUrl, ticketId, worklogId, config.jiraEmail, config.jiraApiToken)
+
+    return res.json({ status: 'ok', message: `Worklog ${worklogId} on ticket ${ticketId} deleted from Jira.` })
+  } catch (err) {
+    if (err.response?.status === 404) {
+      return res.status(404).json({ status: 'error', message: 'Worklog entry or ticket not found on Jira.' })
+    }
+    if (err.response?.status === 403 || err.response?.status === 401) {
+      return res.status(403).json({ status: 'error', message: 'Permission denied on Jira to delete this worklog.' })
     }
     next(err)
   }
@@ -488,7 +514,7 @@ router.post('/worklog/generate', optionalAuth, async (req, res, next) => {
 router.post('/worklog/save', optionalAuth, async (req, res, next) => {
   try {
     const uId = getUserId(req)
-    const { jiraTicketId, jiraBaseUrl, summary, timeSpent, worklogDate, worklogSummary, bulletPoints, formattedJiraWorklog } = req.body
+    const { jiraTicketId, jiraWorklogId, jiraBaseUrl, summary, timeSpent, worklogDate, worklogSummary, bulletPoints, formattedJiraWorklog } = req.body
 
     if (!jiraTicketId || !worklogSummary) {
       return res.status(400).json({ status: 'error', message: 'jiraTicketId and worklogSummary are required.' })
@@ -497,6 +523,7 @@ router.post('/worklog/save', optionalAuth, async (req, res, next) => {
     const record = await WorklogModel.create({
       userId: uId,
       jiraTicketId,
+      jiraWorklogId: jiraWorklogId || '',
       jiraBaseUrl,
       summary,
       timeSpent,

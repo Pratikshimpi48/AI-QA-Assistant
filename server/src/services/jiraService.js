@@ -294,6 +294,29 @@ async function deleteJiraComment(jiraBaseUrl, ticketId, commentId, email, apiTok
   return response.data
 }
 
+/**
+ * Delete a specific work log entry from a Jira issue via Jira REST API.
+ * Strictly limited to user-initiated actions via frontend UI.
+ */
+async function deleteJiraWorklogFromJira(jiraBaseUrl, ticketId, worklogId, email, apiToken) {
+  if (!jiraBaseUrl || !ticketId || !worklogId || !email || !apiToken) {
+    throw new Error('Missing Jira credentials, ticket ID, or worklog ID.')
+  }
+  const cleanUrl = cleanJiraBaseUrl(jiraBaseUrl)
+  const authHeader = 'Basic ' + Buffer.from(`${email.trim()}:${apiToken.trim()}`).toString('base64')
+
+  const response = await axios.delete(
+    `${cleanUrl}/rest/api/3/issue/${ticketId}/worklog/${worklogId}`,
+    {
+      headers: {
+        'Authorization': authHeader,
+        'Accept': 'application/json',
+      },
+    }
+  )
+  return response.data
+}
+
 module.exports = {
   cleanJiraBaseUrl,
   fetchJiraIssue,
@@ -306,4 +329,5 @@ module.exports = {
   convertTextToADF,
   postJiraWorklog,
   deleteJiraComment,
+  deleteJiraWorklogFromJira,
 }

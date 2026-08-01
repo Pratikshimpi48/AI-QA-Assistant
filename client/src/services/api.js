@@ -393,4 +393,9 @@ export async function postJiraWorklogDirect(payload) {
   return data
 }
 
+export async function deleteJiraWorklogDirectFromJira(ticketId, worklogId) {
+  const { data } = await api.delete(`/jira/ticket/${ticketId}/worklog/${worklogId}`)
+  return data
+}
+
 export default api
