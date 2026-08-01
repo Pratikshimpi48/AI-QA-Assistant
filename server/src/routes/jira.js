@@ -6,7 +6,7 @@ const { optionalAuth }   = require('../middleware/auth')
 const JiraConfigModel    = require('../models/JiraConfig')
 const JiraWatchlistModel = require('../models/JiraWatchlist')
 const WorklogModel       = require('../models/Worklog')
-const { cleanJiraBaseUrl, fetchJiraIssue, getIssueStatus, getIssueSummary, extractJiraTicketDetails, deleteJiraComment } = require('../services/jiraService')
+const { cleanJiraBaseUrl, fetchJiraIssue, getIssueStatus, getIssueSummary, extractJiraTicketDetails, deleteJiraComment, postJiraWorklog } = require('../services/jiraService')
 const { generateCustomPrompt } = require('../services/aiProvider')
 const { buildWorklogPrompt, parseWorklogResponse } = require('../services/promptBuilder')
 
@@ -399,6 +399,44 @@ router.delete('/ticket/:ticketId/comment/:commentId', optionalAuth, async (req, 
     }
     if (err.response?.status === 403 || err.response?.status === 401) {
       return res.status(403).json({ status: 'error', message: 'Permission denied on Jira to delete this comment.' })
+    }
+    next(err)
+  }
+})
+
+/**
+ * POST /api/jira/worklog/post-to-jira — user-initiated posting of official Worklog to Jira
+ * Matches Jira's "Time tracking" dialog fields (timeSpent, started, workDescription)
+ */
+router.post('/worklog/post-to-jira', optionalAuth, async (req, res, next) => {
+  try {
+    const config = await getEffectiveJiraConfig(req)
+    if (!config || !config.jiraApiToken) {
+      return res.status(400).json({ status: 'error', message: 'Jira API credentials not configured in Settings.' })
+    }
+
+    const { ticketId, timeSpent, worklogDate, workDescription } = req.body
+    if (!ticketId) {
+      return res.status(400).json({ status: 'error', message: 'Missing Jira ticket ID.' })
+    }
+
+    const result = await postJiraWorklog(
+      config.jiraBaseUrl,
+      ticketId,
+      timeSpent,
+      worklogDate,
+      workDescription,
+      config.jiraEmail,
+      config.jiraApiToken
+    )
+
+    return res.json({ status: 'ok', message: `Worklog successfully posted to Jira ticket ${ticketId}`, result })
+  } catch (err) {
+    if (err.response?.status === 400) {
+      return res.status(400).json({ status: 'error', message: err.response?.data?.errorMessages?.[0] || 'Invalid Jira worklog payload.' })
+    }
+    if (err.response?.status === 403 || err.response?.status === 401) {
+      return res.status(403).json({ status: 'error', message: 'Permission denied on Jira to post worklog.' })
     }
     next(err)
   }

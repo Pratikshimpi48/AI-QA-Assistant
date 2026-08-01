@@ -197,6 +197,81 @@ function extractJiraTicketDetails(issue, filterEmail = null) {
 }
 
 /**
+ * Convert plain string text to Atlassian Document Format (ADF) for comments / work descriptions.
+ */
+function convertTextToADF(text) {
+  if (!text) return null
+  const lines = text.split('\n')
+  const content = lines.map(line => {
+    if (!line.trim()) {
+      return {
+        type: 'paragraph',
+        content: [],
+      }
+    }
+    return {
+      type: 'paragraph',
+      content: [
+        {
+          type: 'text',
+          text: line,
+        },
+      ],
+    }
+  })
+
+  return {
+    type: 'doc',
+    version: 1,
+    content,
+  }
+}
+
+/**
+ * Post an official Jira Worklog entry to an issue.
+ * Matches Jira's "Time tracking" dialog fields (Time spent, Date started, Work description).
+ * Strictly limited to user-initiated actions via frontend UI.
+ */
+async function postJiraWorklog(jiraBaseUrl, ticketId, timeSpent, startedDateStr, workDescriptionText, email, apiToken) {
+  if (!jiraBaseUrl || !ticketId || !email || !apiToken) {
+    throw new Error('Missing Jira credentials or ticket ID.')
+  }
+  const cleanUrl = cleanJiraBaseUrl(jiraBaseUrl)
+  const authHeader = 'Basic ' + Buffer.from(`${email.trim()}:${apiToken.trim()}`).toString('base64')
+
+  // Format started date as ISO string (e.g. 2026-08-01T07:23:00.000+0000)
+  let isoStarted = new Date().toISOString()
+  if (startedDateStr) {
+    const d = new Date(startedDateStr)
+    if (!isNaN(d.getTime())) {
+      isoStarted = d.toISOString()
+    }
+  }
+  const formattedStarted = isoStarted.replace('Z', '+0000')
+
+  const adfComment = convertTextToADF(workDescriptionText)
+
+  const payload = {
+    timeSpent: timeSpent || '1h 30m',
+    started: formattedStarted,
+    comment: adfComment,
+  }
+
+  const response = await axios.post(
+    `${cleanUrl}/rest/api/3/issue/${ticketId}/worklog`,
+    payload,
+    {
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    }
+  )
+  return response.data
+}
+
+/**
  * Delete a specific comment from a Jira issue.
  * Strictly limited to user-initiated actions via frontend UI.
  */
@@ -228,5 +303,7 @@ module.exports = {
   isReleasedStatus,
   extractADFText,
   extractJiraTicketDetails,
+  convertTextToADF,
+  postJiraWorklog,
   deleteJiraComment,
 }

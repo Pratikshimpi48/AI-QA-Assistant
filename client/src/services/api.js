@@ -388,4 +388,9 @@ export async function deleteJiraCommentOnJira(ticketId, commentId) {
   return data
 }
 
+export async function postJiraWorklogDirect(payload) {
+  const { data } = await api.post('/jira/worklog/post-to-jira', payload)
+  return data
+}
+
 export default api

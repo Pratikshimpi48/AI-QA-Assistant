@@ -11,6 +11,7 @@ import {
   getJiraWorklogs,
   deleteJiraWorklog,
   deleteJiraCommentOnJira,
+  postJiraWorklogDirect,
 } from '../services/api'
 
 function timeAgo(dateStr) {
@@ -225,7 +226,7 @@ export default function JiraWorklogPage() {
     }
   }
 
-  // STEP 2 - BUTTON 2 HANDLER: Post Work Log on Jira (User-Initiated)
+  // STEP 2 - BUTTON 2 HANDLER: Post Work Log on Jira (Direct Time Tracking API Post)
   const handlePostToJira = async () => {
     const formattedText = editableJiraFormat || editableSummary || generatedWorklog?.formattedJiraWorklog || ''
     if (!formattedText) {
@@ -233,38 +234,42 @@ export default function JiraWorklogPage() {
       return
     }
 
-    // 1. Auto-save work log to database & history
-    try {
-      const targetId = selectedTicketId || ticketInput || generatedWorklog?.ticketId
-      const payload = {
-        jiraTicketId: targetId,
-        jiraBaseUrl: ticketDetails?.jiraBaseUrl || jiraBaseUrl,
-        summary: ticketDetails?.summary || generatedWorklog?.summary,
-        timeSpent: getTimeSpentString(),
-        worklogDate,
-        worklogSummary: editableSummary || formattedText,
-        bulletPoints: generatedWorklog?.bulletPoints || [],
-        formattedJiraWorklog: editableJiraFormat || formattedText,
-      }
-      await saveJiraWorklog(payload)
-      loadSavedWorklogs()
-    } catch (err) {
-      console.warn('[PostToJira] Auto-save error:', err.message)
-    }
-
-    // 2. Copy formatted work log to user's clipboard
-    navigator.clipboard.writeText(formattedText)
-
-    // 3. Open Jira Ticket Page in a new browser tab for 1-click manual paste
     const targetTicketId = ticketDetails?.ticketId || selectedTicketId || ticketInput
-    const baseUrl = ticketDetails?.jiraBaseUrl || jiraBaseUrl
-    const ticketUrl = baseUrl ? `${baseUrl}/browse/${targetTicketId}` : null
+    const calcTimeSpent  = getTimeSpentString()
 
-    if (ticketUrl) {
-      window.open(ticketUrl, '_blank')
-      showToast(`🚀 Work Log saved to DB, copied to clipboard & opened ${targetTicketId} in Jira!`)
-    } else {
-      showToast('🚀 Work Log saved to DB & copied to clipboard!')
+    try {
+      showToast('🚀 Posting official Worklog to Jira Time Tracking...')
+      
+      // 1. Direct Jira REST API Worklog Post (Time spent, Date started, Work description ADF)
+      await postJiraWorklogDirect({
+        ticketId: targetTicketId,
+        timeSpent: calcTimeSpent,
+        worklogDate,
+        workDescription: formattedText,
+      })
+
+      // 2. Auto-save work log to local database & refresh history
+      try {
+        const payload = {
+          jiraTicketId: targetTicketId,
+          jiraBaseUrl: ticketDetails?.jiraBaseUrl || jiraBaseUrl,
+          summary: ticketDetails?.summary || generatedWorklog?.summary,
+          timeSpent: calcTimeSpent,
+          worklogDate,
+          worklogSummary: editableSummary || formattedText,
+          bulletPoints: generatedWorklog?.bulletPoints || [],
+          formattedJiraWorklog: editableJiraFormat || formattedText,
+        }
+        await saveJiraWorklog(payload)
+        loadSavedWorklogs()
+      } catch { /* ignore */ }
+
+      // 3. Copy formatted comment to clipboard
+      navigator.clipboard.writeText(formattedText)
+
+      showToast(`🎉 Worklog successfully posted directly to Jira ticket ${targetTicketId}!`)
+    } catch (err) {
+      setErrorMsg(err.response?.data?.message || 'Failed to post work log directly to Jira. Make sure Jira is connected in Settings.')
     }
   }
 
