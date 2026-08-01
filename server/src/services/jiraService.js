@@ -92,9 +92,42 @@ function extractADFText(node) {
 }
 
 /**
- * Extract structured ticket details for AI Work Log generation.
+ * Helper to check if a comment's author matches the user's Jira account (email or display name).
  */
-function extractJiraTicketDetails(issue) {
+function isUserAuthor(authorObj, filterEmail) {
+  if (!filterEmail) return true
+  if (!authorObj) return false
+
+  const fEmail = (filterEmail || '').toLowerCase().trim()
+  if (!fEmail) return true
+
+  const email = (authorObj.emailAddress || '').toLowerCase().trim()
+  const name  = (authorObj.displayName || '').toLowerCase().trim()
+
+  if (email && (email === fEmail || email.includes(fEmail) || fEmail.includes(email))) {
+    return true
+  }
+
+  const username = fEmail.split('@')[0].replace(/[^a-z0-9]/g, '')
+  const nameClean = name.replace(/[^a-z0-9]/g, '')
+
+  if (username && nameClean && (nameClean.includes(username) || username.includes(nameClean))) {
+    return true
+  }
+
+  const emailParts = fEmail.split('@')[0].split(/[^a-z0-9]+/i).filter(p => p.length >= 3)
+  for (const part of emailParts) {
+    if (nameClean.includes(part)) return true
+  }
+
+  return false
+}
+
+/**
+ * Extract structured ticket details for AI Work Log generation.
+ * Filters comments so that ONLY comments authored by the user (filterEmail) are extracted.
+ */
+function extractJiraTicketDetails(issue, filterEmail = null) {
   if (!issue || !issue.fields) return null
 
   const ticketId  = issue.key || ''
@@ -112,10 +145,21 @@ function extractJiraTicketDetails(issue) {
 
   let commentsText = ''
   let commentsList = []
-  const comments = issue.fields.comment?.comments
-  if (Array.isArray(comments) && comments.length > 0) {
-    commentsList = comments
-      .slice(-15)
+  let totalCommentsCount = 0
+  let userCommentsCount  = 0
+
+  const allComments = issue.fields.comment?.comments
+  if (Array.isArray(allComments) && allComments.length > 0) {
+    totalCommentsCount = allComments.length
+
+    // Filter comments authored ONLY by the logged-in user
+    const userComments = filterEmail
+      ? allComments.filter(c => isUserAuthor(c.author, filterEmail))
+      : allComments
+
+    userCommentsCount = userComments.length
+
+    commentsList = userComments
       .map(c => {
         const author  = c.author?.displayName || c.author?.emailAddress || 'Jira User'
         const dateStr = c.created ? new Date(c.created).toLocaleString() : ''
@@ -125,6 +169,7 @@ function extractJiraTicketDetails(issue) {
           created: c.created || '',
           dateStr,
           body: (body || '').trim(),
+          isUserComment: true,
         }
       })
       .filter(c => c.body.length > 0)
@@ -143,6 +188,9 @@ function extractJiraTicketDetails(issue) {
     descriptionText: descriptionText.trim(),
     commentsText: commentsText.trim(),
     commentsList,
+    totalCommentsCount,
+    userCommentsCount,
+    filterEmail: filterEmail || null,
   }
 }
 

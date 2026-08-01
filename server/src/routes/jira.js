@@ -361,7 +361,7 @@ router.get('/ticket/:ticketId', optionalAuth, async (req, res, next) => {
 
     const ticketId = req.params.ticketId.trim().toUpperCase()
     const rawIssue = await fetchJiraIssue(config.jiraBaseUrl, ticketId, config.jiraEmail, config.jiraApiToken)
-    const details  = extractJiraTicketDetails(rawIssue)
+    const details  = extractJiraTicketDetails(rawIssue, config.jiraEmail)
 
     if (!details) {
       return res.status(404).json({ status: 'error', message: `Ticket ${ticketId} not found.` })
@@ -392,7 +392,7 @@ router.post('/worklog/generate', optionalAuth, async (req, res, next) => {
     if (!finalTicketData && ticketId && config) {
       try {
         const rawIssue = await fetchJiraIssue(config.jiraBaseUrl, ticketId, config.jiraEmail, config.jiraApiToken)
-        finalTicketData = extractJiraTicketDetails(rawIssue)
+        finalTicketData = extractJiraTicketDetails(rawIssue, config.jiraEmail)
       } catch (err) {
         console.warn(`[WorklogGenerate] Fetch issue ${ticketId} warning:`, err.message)
       }

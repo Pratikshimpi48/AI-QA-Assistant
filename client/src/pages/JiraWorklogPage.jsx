@@ -419,8 +419,8 @@ export default function JiraWorklogPage() {
             display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
           }}>
             <div>
-              <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f8fafc', margin: '0 0 1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span>💬 Jira User Comments (Primary Basis for Summary)</span>
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#f8fafc', margin: '0 0 1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span>👤 Comments Posted by You (Filtered: {jiraEmail || 'Your Account'})</span>
               </h2>
 
               {ticketDetails ? (
@@ -449,9 +449,16 @@ export default function JiraWorklogPage() {
                   {/* Comments Inspector Box */}
                   {ticketDetails.commentsList && ticketDetails.commentsList.length > 0 ? (
                     <div style={{ marginTop: '0.75rem' }}>
-                      <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#818cf8', display: 'block', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        💬 {ticketDetails.commentsList.length} User Comment(s) Found on Ticket:
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem', flexWrap: 'wrap', gap: '0.25rem' }}>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          ✅ {ticketDetails.userCommentsCount || ticketDetails.commentsList.length} Comment(s) Posted by You
+                        </span>
+                        {ticketDetails.totalCommentsCount > (ticketDetails.userCommentsCount || ticketDetails.commentsList.length) && (
+                          <span style={{ fontSize: '0.68rem', color: '#64748b' }}>
+                            ({ticketDetails.totalCommentsCount - ticketDetails.commentsList.length} from other users excluded)
+                          </span>
+                        )}
+                      </div>
                       <div style={{
                         display: 'flex', flexDirection: 'column', gap: '0.6rem',
                         maxHeight: '260px', overflowY: 'auto', paddingRight: '0.25rem',
@@ -459,11 +466,11 @@ export default function JiraWorklogPage() {
                         {ticketDetails.commentsList.map((c, idx) => (
                           <div key={idx} style={{
                             padding: '0.65rem 0.85rem', borderRadius: '0.5rem',
-                            background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(255, 255, 255, 0.08)',
+                            background: 'rgba(34, 197, 94, 0.06)', border: '1px solid rgba(34, 197, 94, 0.2)',
                           }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#f1f5f9' }}>
-                                👤 {c.author}
+                              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4ade80' }}>
+                                👤 {c.author} (You)
                               </span>
                               {c.dateStr && (
                                 <span style={{ fontSize: '0.68rem', color: '#64748b' }}>
@@ -478,9 +485,13 @@ export default function JiraWorklogPage() {
                         ))}
                       </div>
                     </div>
+                  ) : ticketDetails.totalCommentsCount > 0 ? (
+                    <div style={{ padding: '1.25rem', borderRadius: '0.5rem', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: '#fbbf24', fontSize: '0.8rem', textAlign: 'center' }}>
+                      💬 {ticketDetails.totalCommentsCount} comment(s) exist on this ticket, but none were posted by your account ({jiraEmail}). Comments from other users are excluded.
+                    </div>
                   ) : (
                     <div style={{ padding: '1.25rem', borderRadius: '0.5rem', background: 'rgba(0,0,0,0.2)', color: '#94a3b8', fontSize: '0.8rem', textAlign: 'center' }}>
-                      💬 No posted comments found on this ticket yet. AI will synthesize the summary using the ticket description & user notes.
+                      💬 No posted comments found on this ticket yet.
                     </div>
                   )}
                 </div>

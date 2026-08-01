@@ -201,12 +201,16 @@ function buildWorklogPrompt(jiraTicketData, userNotes = '', timeSpent = '', work
   const safeSummary  = (jiraTicketData.summary || '').replace(/"/g, "'").replace(/\n/g, ' ')
   const safeStatus   = jiraTicketData.status || 'In Progress'
 
-  const systemPrompt = `You are a Principal Software Engineer & QA Leader. Your task is to generate a concise, professional Work Description summary BASED PRIMARILY AND EXCLUSIVELY ON THE COMMENTS POSTED ON THE JIRA TICKET.
+  const systemPrompt = `You are an AI Personal Work Log Assistant for a Software / QA Engineer. Your task is to evaluate and synthesize a professional Work Description summary BASED EXCLUSIVELY ON THE COMMENTS POSTED BY THIS SPECIFIC USER on the Jira ticket.
 
-CRITICAL MANDATE:
-1. Analyze all user comments posted on the Jira ticket (development updates, code review notes, testing observations, bug reports, deployment updates, user notes).
-2. Synthesize these comments into a clear, structured "Work Description" that summarizes the progression of work and exact updates recorded in the ticket comments.
-3. The work description is NOT limited to testing — it reflects whatever work updates were discussed and logged in the ticket comments by Jira users.
+CRITICAL USER-SPECIFIC MANDATES:
+1. The comments provided below have been strictly pre-filtered to contain ONLY updates posted by this specific user.
+2. Evaluate what THIS USER did according to their comments:
+   - Posted or created test cases / scenarios
+   - Verified test cases or performed QA testing / validation
+   - Reported bugs, defects, or visual/functional findings
+   - Discussed technical details, code review items, or status updates
+3. Synthesize a concise, professional daily Work Description summarizing what THIS USER performed on the ticket. Do NOT invent activities that the user did not state in their comments.
 
 OUTPUT FORMAT — respond with a valid JSON object and NOTHING ELSE.
 No markdown code fences, no extra text. Only the raw JSON object.
@@ -218,23 +222,23 @@ The JSON object MUST have these exact fields:
   "status": "In Progress",
   "timeSpent": "1h 30m",
   "worklogDate": "2026-07-31",
-  "worklogSummary": "Rich Markdown Work Description synthesizing the work updates and details from ticket comments...",
+  "worklogSummary": "Rich Markdown Work Description summarizing this user's activities (test cases posted, verifications, bugs reported, discussions)...",
   "bulletPoints": [
-    "Key work update extracted from ticket comments",
-    "Verification or implementation detail noted in discussion"
+    "Posted and executed test cases for feature workflow",
+    "Verified bug resolution and logged testing observations"
   ],
-  "formattedJiraWorklog": "*Work Log — [TICKET-ID] (2026-07-31)*\\n• Synthesized update based on ticket comments\\n• Current Status: In Progress"
+  "formattedJiraWorklog": "*Work Log — [TICKET-ID] (2026-07-31)*\\n• Evaluated work update based on user comments\\n• Current Status: In Progress"
 }`
 
-  const userMessage = `Synthesize a professional Work Description for this Jira Ticket based on all comments and updates posted by Jira users:
+  const userMessage = `Synthesize a professional personal Work Description for this Jira Ticket based EXCLUSIVELY on the comments posted by this user:
 
 Ticket ID: ${safeTicketId}
 Summary: ${safeSummary}
 Status: ${safeStatus}
 Issue Type: ${jiraTicketData.issueType || 'Task'}
 
-*** COMMENTS POSTED ON JIRA TICKET (PRIMARY SOURCE) ***:
-${jiraTicketData.commentsText || 'No comments posted yet on this ticket. (Use ticket description & user notes below)'}
+*** COMMENTS POSTED BY THIS USER ON TICKET (PRIMARY SOURCE) ***:
+${jiraTicketData.commentsText || 'No comments posted by this user on the ticket yet. (Use user notes below)'}
 
 Ticket Description Context:
 ${(jiraTicketData.descriptionText || 'No description provided.').slice(0, 2000)}
