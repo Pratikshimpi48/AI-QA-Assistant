@@ -543,21 +543,21 @@ export default function JiraWorklogPage() {
           </div>
         )}
 
-        {/* STEP 3: INTERACTIVE WORK DESCRIPTION & SUMMARY EDITOR (REVEALED UPON GENERATION) */}
+        {/* STEP 3: INTERACTIVE FORMATTED JIRA COMMENT (READY TO PASTE) */}
         {generatedWorklog && (
           <div style={{
-            background: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(99, 102, 241, 0.35)',
+            background: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(56, 189, 248, 0.35)',
             borderRadius: '1rem', padding: '1.75rem', marginBottom: '3rem', backdropFilter: 'blur(16px)',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.6), 0 0 25px rgba(99,102,241,0.2)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.6), 0 0 25px rgba(56,189,248,0.2)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ fontSize: '1.2rem' }}>✏️</span>
+                <span style={{ fontSize: '1.2rem' }}>💬</span>
                 <div>
                   <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#f8fafc', margin: 0 }}>
-                    3️⃣ Step 3: Verify & Edit Work Description Summary
+                    3️⃣ Step 3: Formatted Jira Comment (Ready to Paste)
                   </h2>
-                  <span style={{ fontSize: '0.75rem', color: '#818cf8', fontWeight: 600 }}>
+                  <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 600 }}>
                     [{generatedWorklog.ticketId}] | Log Date: {worklogDate} | Time Spent: {timeSpent}
                   </span>
                 </div>
@@ -566,14 +566,14 @@ export default function JiraWorklogPage() {
               <div style={{ display: 'flex', gap: '0.6rem' }}>
                 <button
                   type="button"
-                  onClick={() => handleCopyClipboard(editableSummary)}
+                  onClick={() => handleCopyClipboard(editableJiraFormat || editableSummary)}
                   style={{
                     padding: '0.55rem 1.1rem', borderRadius: '0.5rem', fontSize: '0.82rem', fontWeight: 700,
-                    background: 'rgba(99, 102, 241, 0.2)', border: '1px solid rgba(99, 102, 241, 0.4)',
-                    color: '#818cf8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem',
+                    background: 'rgba(56, 189, 248, 0.2)', border: '1px solid rgba(56, 189, 248, 0.4)',
+                    color: '#38bdf8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem',
                   }}
                 >
-                  <span>📋 Copy Summary</span>
+                  <span>📋 Copy Formatted Comment</span>
                 </button>
 
                 <button
@@ -592,42 +592,24 @@ export default function JiraWorklogPage() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '1.25rem' }}>
-              {/* Editable Work Description Summary */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#818cf8', marginBottom: '0.4rem', textTransform: 'uppercase' }}>
-                  Work Description Summary (Editable — Add / Adjust your updates)
-                </label>
-                <textarea
-                  rows={10}
-                  value={editableSummary}
-                  onChange={e => setEditableSummary(e.target.value)}
-                  style={{
-                    width: '100%', padding: '0.85rem', borderRadius: '0.75rem',
-                    background: 'rgba(30, 41, 59, 0.9)', border: '1px solid rgba(255, 255, 255, 0.12)',
-                    color: '#f8fafc', fontSize: '0.85rem', outline: 'none', lineHeight: 1.5,
-                    resize: 'vertical', boxSizing: 'border-box', fontFamily: 'monospace',
-                  }}
-                />
-              </div>
-
-              {/* Formatted Jira Comment */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#38bdf8', marginBottom: '0.4rem', textTransform: 'uppercase' }}>
-                  Formatted Jira Comment (Ready to Paste)
-                </label>
-                <textarea
-                  rows={10}
-                  value={editableJiraFormat}
-                  onChange={e => setEditableJiraFormat(e.target.value)}
-                  style={{
-                    width: '100%', padding: '0.85rem', borderRadius: '0.75rem',
-                    background: 'rgba(30, 41, 59, 0.9)', border: '1px solid rgba(255, 255, 255, 0.12)',
-                    color: '#f8fafc', fontSize: '0.85rem', outline: 'none', lineHeight: 1.5,
-                    resize: 'vertical', boxSizing: 'border-box', fontFamily: 'monospace',
-                  }}
-                />
-              </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#38bdf8', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Formatted Jira Comment (Generated directly from your ticket comments)
+              </label>
+              <textarea
+                rows={12}
+                value={editableJiraFormat || editableSummary}
+                onChange={e => {
+                  setEditableJiraFormat(e.target.value)
+                  setEditableSummary(e.target.value)
+                }}
+                style={{
+                  width: '100%', padding: '1rem', borderRadius: '0.75rem',
+                  background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(56, 189, 248, 0.3)',
+                  color: '#f8fafc', fontSize: '0.9rem', outline: 'none', lineHeight: 1.6,
+                  resize: 'vertical', boxSizing: 'border-box', fontFamily: 'monospace',
+                }}
+              />
             </div>
           </div>
         )}
