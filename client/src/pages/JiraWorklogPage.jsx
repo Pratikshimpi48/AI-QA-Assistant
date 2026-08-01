@@ -501,7 +501,7 @@ export default function JiraWorklogPage() {
             </div>
 
             {/* TWO ACTION BUTTONS */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: generatedWorklog ? '1.5rem' : 0 }}>
               
               {/* BUTTON 1: Generate Work Description */}
               <button
@@ -540,77 +540,62 @@ export default function JiraWorklogPage() {
               </button>
 
             </div>
-          </div>
-        )}
 
-        {/* STEP 3: INTERACTIVE FORMATTED JIRA COMMENT (READY TO PASTE) */}
-        {generatedWorklog && (
-          <div style={{
-            background: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(56, 189, 248, 0.35)',
-            borderRadius: '1rem', padding: '1.75rem', marginBottom: '3rem', backdropFilter: 'blur(16px)',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.6), 0 0 25px rgba(56,189,248,0.2)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ fontSize: '1.2rem' }}>💬</span>
-                <div>
-                  <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#f8fafc', margin: 0 }}>
-                    3️⃣ Step 3: Formatted Jira Comment (Ready to Paste)
-                  </h2>
-                  <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 600 }}>
-                    [{generatedWorklog.ticketId}] | Log Date: {worklogDate} | Time Spent: {timeSpent}
-                  </span>
+            {/* GENERATED FORMATTED JIRA COMMENT EDITOR (INTEGRATED DIRECTLY IN STEP 2) */}
+            {generatedWorklog && (
+              <div style={{
+                marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.1)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 800, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0 }}>
+                    💬 Formatted Jira Comment (Ready to Paste)
+                  </label>
+
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyClipboard(editableJiraFormat || editableSummary)}
+                      style={{
+                        padding: '0.45rem 0.95rem', borderRadius: '0.5rem', fontSize: '0.78rem', fontWeight: 700,
+                        background: 'rgba(56, 189, 248, 0.2)', border: '1px solid rgba(56, 189, 248, 0.4)',
+                        color: '#38bdf8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem',
+                      }}
+                    >
+                      <span>📋 Copy Comment</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleSaveLog}
+                      disabled={savingLog}
+                      style={{
+                        padding: '0.45rem 0.95rem', borderRadius: '0.5rem', fontSize: '0.78rem', fontWeight: 700,
+                        background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', border: 'none',
+                        color: '#ffffff', cursor: savingLog ? 'not-allowed' : 'pointer', opacity: savingLog ? 0.7 : 1,
+                        display: 'flex', alignItems: 'center', gap: '0.35rem', boxShadow: '0 2px 10px rgba(34,197,94,0.3)',
+                      }}
+                    >
+                      <span>{savingLog ? 'Saving...' : '💾 Save Entry'}</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              <div style={{ display: 'flex', gap: '0.6rem' }}>
-                <button
-                  type="button"
-                  onClick={() => handleCopyClipboard(editableJiraFormat || editableSummary)}
-                  style={{
-                    padding: '0.55rem 1.1rem', borderRadius: '0.5rem', fontSize: '0.82rem', fontWeight: 700,
-                    background: 'rgba(56, 189, 248, 0.2)', border: '1px solid rgba(56, 189, 248, 0.4)',
-                    color: '#38bdf8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem',
+                <textarea
+                  rows={10}
+                  value={editableJiraFormat || editableSummary}
+                  onChange={e => {
+                    setEditableJiraFormat(e.target.value)
+                    setEditableSummary(e.target.value)
                   }}
-                >
-                  <span>📋 Copy Formatted Comment</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleSaveLog}
-                  disabled={savingLog}
                   style={{
-                    padding: '0.55rem 1.1rem', borderRadius: '0.5rem', fontSize: '0.82rem', fontWeight: 700,
-                    background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', border: 'none',
-                    color: '#ffffff', cursor: savingLog ? 'not-allowed' : 'pointer', opacity: savingLog ? 0.7 : 1,
-                    display: 'flex', alignItems: 'center', gap: '0.4rem', boxShadow: '0 2px 10px rgba(34,197,94,0.3)',
+                    width: '100%', padding: '0.9rem', borderRadius: '0.75rem',
+                    background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(56, 189, 248, 0.35)',
+                    color: '#f8fafc', fontSize: '0.875rem', outline: 'none', lineHeight: 1.55,
+                    resize: 'vertical', boxSizing: 'border-box', fontFamily: 'monospace',
                   }}
-                >
-                  <span>{savingLog ? 'Saving...' : '💾 Save Work Log'}</span>
-                </button>
+                />
               </div>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#38bdf8', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Formatted Jira Comment (Generated directly from your ticket comments)
-              </label>
-              <textarea
-                rows={12}
-                value={editableJiraFormat || editableSummary}
-                onChange={e => {
-                  setEditableJiraFormat(e.target.value)
-                  setEditableSummary(e.target.value)
-                }}
-                style={{
-                  width: '100%', padding: '1rem', borderRadius: '0.75rem',
-                  background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(56, 189, 248, 0.3)',
-                  color: '#f8fafc', fontSize: '0.9rem', outline: 'none', lineHeight: 1.6,
-                  resize: 'vertical', boxSizing: 'border-box', fontFamily: 'monospace',
-                }}
-              />
-            </div>
+            )}
           </div>
         )}
 
