@@ -383,4 +383,9 @@ export async function deleteJiraWorklog(id) {
   return data
 }
 
+export async function deleteJiraCommentOnJira(ticketId, commentId) {
+  const { data } = await api.delete(`/jira/ticket/${ticketId}/comment/${commentId}`)
+  return data
+}
+
 export default api

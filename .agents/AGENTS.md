@@ -1,13 +1,14 @@
 # Project Behavioral Rules & Security Constraints
 
-## 🛑 STRICT JIRA READ-ONLY POLICY (CRITICAL)
+## 🛑 JIRA INTERACTION POLICY & USER-INITIATED CONTROL
 
-1. **NO JIRA CREATION OR MUTATION**:
-   - The application MUST NEVER issue `POST`, `PUT`, `PATCH`, or `DELETE` requests to Jira REST API endpoints to create, update, or modify tickets, user stories, issues, or comments on any official Jira board.
-   - All AI-generated test cases and bug reports MUST remain strictly local to the application interface and local storage/database. They must NEVER be auto-posted or uploaded to Jira.
+1. **NO AUTOMATED AI JIRA MUTATIONS**:
+   - Automated scripts, background tasks, and AI subagents MUST NEVER issue `POST`, `PUT`, `PATCH`, or `DELETE` requests to Jira REST API endpoints automatically or without explicit user button clicks on the frontend UI.
+   - All AI-generated test cases and bug reports remain local to the application database until explicitly managed or exported by the user.
 
-2. **READ-ONLY JIRA ACCESS ONLY**:
-   - Jira API access is strictly limited to `GET` requests (`/rest/api/3/issue/{ticketId}`) for reading issue status, summary, and status change events (e.g. Jira Watchlist monitoring).
+2. **USER-INITIATED JIRA COMMENT DELETION & POSTING**:
+   - The frontend UI allows the user to explicitly post work logs or delete comments authored ONLY by their connected Jira account ID (`jiraEmail` / user account) when they click the frontend button (`DELETE /rest/api/3/issue/{ticketId}/comment/{commentId}`).
+   - The application MUST NEVER modify or delete comments belonging to other Jira users under any circumstance.
 
 3. **USER DATA SAFETY**:
-   - Always treat external Jira credentials (URL, Email, API Token) with extreme care. Provide copy-to-clipboard options for users to manually copy bug reports or test cases into Jira if they wish.
+   - Always treat external Jira credentials (URL, Email, API Token) with extreme care.

@@ -6,7 +6,7 @@ const { optionalAuth }   = require('../middleware/auth')
 const JiraConfigModel    = require('../models/JiraConfig')
 const JiraWatchlistModel = require('../models/JiraWatchlist')
 const WorklogModel       = require('../models/Worklog')
-const { cleanJiraBaseUrl, fetchJiraIssue, getIssueStatus, getIssueSummary, extractJiraTicketDetails } = require('../services/jiraService')
+const { cleanJiraBaseUrl, fetchJiraIssue, getIssueStatus, getIssueSummary, extractJiraTicketDetails, deleteJiraComment } = require('../services/jiraService')
 const { generateCustomPrompt } = require('../services/aiProvider')
 const { buildWorklogPrompt, parseWorklogResponse } = require('../services/promptBuilder')
 
@@ -374,6 +374,31 @@ router.get('/ticket/:ticketId', optionalAuth, async (req, res, next) => {
     }
     if (err.response?.status === 401) {
       return res.status(401).json({ status: 'error', message: 'Jira authentication failed. Please verify your API token in Settings.' })
+    }
+    next(err)
+  }
+})
+
+/**
+ * DELETE /api/jira/ticket/:ticketId/comment/:commentId — user-initiated deletion of their own comment on Jira
+ */
+router.delete('/ticket/:ticketId/comment/:commentId', optionalAuth, async (req, res, next) => {
+  try {
+    const config = await getEffectiveJiraConfig(req)
+    if (!config || !config.jiraApiToken) {
+      return res.status(400).json({ status: 'error', message: 'Jira API credentials not configured.' })
+    }
+
+    const { ticketId, commentId } = req.params
+    await deleteJiraComment(config.jiraBaseUrl, ticketId, commentId, config.jiraEmail, config.jiraApiToken)
+
+    return res.json({ status: 'ok', message: `Comment ${commentId} on ticket ${ticketId} deleted from Jira.` })
+  } catch (err) {
+    if (err.response?.status === 404) {
+      return res.status(404).json({ status: 'error', message: 'Comment or ticket not found on Jira.' })
+    }
+    if (err.response?.status === 403 || err.response?.status === 401) {
+      return res.status(403).json({ status: 'error', message: 'Permission denied on Jira to delete this comment.' })
     }
     next(err)
   }

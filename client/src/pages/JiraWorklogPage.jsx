@@ -10,6 +10,7 @@ import {
   saveJiraWorklog,
   getJiraWorklogs,
   deleteJiraWorklog,
+  deleteJiraCommentOnJira,
 } from '../services/api'
 
 function timeAgo(dateStr) {
@@ -307,6 +308,22 @@ export default function JiraWorklogPage() {
     } catch { /* ignore */ }
   }
 
+  const handleDeleteJiraComment = async (commentId) => {
+    const targetId = ticketDetails?.ticketId || selectedTicketId || ticketInput
+    if (!targetId || !commentId) return
+    const confirmDel = window.confirm(`Are you sure you want to delete this comment from Jira ticket [${targetId}]?`)
+    if (!confirmDel) return
+
+    try {
+      await deleteJiraCommentOnJira(targetId, commentId)
+      showToast(`🗑 Comment deleted from Jira ticket ${targetId}!`)
+      // Refresh ticket details
+      handleFetchTicket(targetId)
+    } catch (err) {
+      setErrorMsg(err.response?.data?.message || 'Failed to delete comment from Jira.')
+    }
+  }
+
   return (
     <div style={{ background: 'var(--color-bg)', minHeight: '100vh' }}>
       <Navbar />
@@ -600,15 +617,31 @@ export default function JiraWorklogPage() {
                           padding: '0.65rem 0.85rem', borderRadius: '0.5rem',
                           background: 'rgba(34, 197, 94, 0.06)', border: '1px solid rgba(34, 197, 94, 0.2)',
                         }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem', flexWrap: 'wrap', gap: '0.25rem' }}>
                             <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4ade80' }}>
                               👤 {c.author} (You)
                             </span>
-                            {c.dateStr && (
-                              <span style={{ fontSize: '0.68rem', color: '#64748b' }}>
-                                {c.dateStr}
-                              </span>
-                            )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              {c.dateStr && (
+                                <span style={{ fontSize: '0.68rem', color: '#64748b' }}>
+                                  {c.dateStr}
+                                </span>
+                              )}
+                              {(c.commentId || c.id) && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteJiraComment(c.commentId || c.id)}
+                                  title="Delete this comment from Jira"
+                                  style={{
+                                    padding: '0.15rem 0.45rem', borderRadius: '0.25rem', fontSize: '0.68rem',
+                                    background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)',
+                                    color: '#f87171', cursor: 'pointer', fontWeight: 600,
+                                  }}
+                                >
+                                  🗑 Delete from Jira
+                                </button>
+                              )}
+                            </div>
                           </div>
                           <p style={{ fontSize: '0.78rem', color: '#cbd5e1', margin: 0, lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
                             {c.body}

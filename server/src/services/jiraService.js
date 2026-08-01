@@ -165,6 +165,8 @@ function extractJiraTicketDetails(issue, filterEmail = null) {
         const dateStr = c.created ? new Date(c.created).toLocaleString() : ''
         const body    = typeof c.body === 'string' ? c.body : extractADFText(c.body)
         return {
+          id: c.id || '',
+          commentId: c.id || '',
           author,
           created: c.created || '',
           dateStr,
@@ -194,6 +196,29 @@ function extractJiraTicketDetails(issue, filterEmail = null) {
   }
 }
 
+/**
+ * Delete a specific comment from a Jira issue.
+ * Strictly limited to user-initiated actions via frontend UI.
+ */
+async function deleteJiraComment(jiraBaseUrl, ticketId, commentId, email, apiToken) {
+  if (!jiraBaseUrl || !ticketId || !commentId || !email || !apiToken) {
+    throw new Error('Missing Jira credentials, ticket ID, or comment ID.')
+  }
+  const cleanUrl = cleanJiraBaseUrl(jiraBaseUrl)
+  const authHeader = 'Basic ' + Buffer.from(`${email.trim()}:${apiToken.trim()}`).toString('base64')
+
+  const response = await axios.delete(
+    `${cleanUrl}/rest/api/3/issue/${ticketId}/comment/${commentId}`,
+    {
+      headers: {
+        'Authorization': authHeader,
+        'Accept': 'application/json',
+      },
+    }
+  )
+  return response.data
+}
+
 module.exports = {
   cleanJiraBaseUrl,
   fetchJiraIssue,
@@ -203,4 +228,5 @@ module.exports = {
   isReleasedStatus,
   extractADFText,
   extractJiraTicketDetails,
+  deleteJiraComment,
 }
