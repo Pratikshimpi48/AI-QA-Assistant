@@ -64,10 +64,75 @@ export default function JiraWorklogPage() {
   const [toastMsg, setToastMsg]           = useState('')
   const [errorMsg, setErrorMsg]           = useState('')
 
+  // History Filter States
+  const [historyFilterSearch, setHistoryFilterSearch] = useState('')
+  const [historyFilterDate, setHistoryFilterDate]     = useState('')
+
+  const filteredSavedLogs = savedLogs.filter(log => {
+    if (historyFilterSearch.trim()) {
+      const q = historyFilterSearch.toLowerCase().trim()
+      const tId = (log.jiraTicketId || '').toLowerCase()
+      const summary = (log.summary || '').toLowerCase()
+      const content = (log.worklogSummary || log.formattedJiraWorklog || '').toLowerCase()
+      if (!tId.includes(q) && !summary.includes(q) && !content.includes(q)) {
+        return false
+      }
+    }
+
+    if (historyFilterDate) {
+      const logDate = log.worklogDate || (log.createdAt ? log.createdAt.split('T')[0] : '')
+      if (logDate !== historyFilterDate) {
+        return false
+      }
+    }
+
+    return true
+  })
+
+  const WORKLOG_DRAFT_KEY = 'jira_worklog_draft_state'
+
   useEffect(() => {
     loadJiraConfigAndWatchlist()
     loadSavedWorklogs()
+
+    // Restore draft state across tab navigation
+    try {
+      const savedDraft = sessionStorage.getItem(WORKLOG_DRAFT_KEY)
+      if (savedDraft) {
+        const parsed = JSON.parse(savedDraft)
+        if (parsed.ticketInput) setTicketInput(parsed.ticketInput)
+        if (parsed.selectedTicketId) setSelectedTicketId(parsed.selectedTicketId)
+        if (parsed.ticketDetails) setTicketDetails(parsed.ticketDetails)
+        if (parsed.generatedWorklog) setGeneratedWorklog(parsed.generatedWorklog)
+        if (parsed.editableSummary) setEditableSummary(parsed.editableSummary)
+        if (parsed.editableJiraFormat) setEditableJiraFormat(parsed.editableJiraFormat)
+        if (parsed.timeHours !== undefined) setTimeHours(parsed.timeHours)
+        if (parsed.timeMinutes !== undefined) setTimeMinutes(parsed.timeMinutes)
+        if (parsed.worklogDate) setWorklogDate(parsed.worklogDate)
+        if (parsed.userNotes) setUserNotes(parsed.userNotes)
+      }
+    } catch { /* ignore */ }
   }, [])
+
+  // Auto-save draft state on input changes
+  useEffect(() => {
+    if (ticketDetails || generatedWorklog || ticketInput) {
+      try {
+        sessionStorage.setItem(WORKLOG_DRAFT_KEY, JSON.stringify({
+          selectedTicketId,
+          ticketInput,
+          ticketDetails,
+          generatedWorklog,
+          editableSummary,
+          editableJiraFormat,
+          timeHours,
+          timeMinutes,
+          worklogDate,
+          userNotes,
+        }))
+      } catch { /* ignore */ }
+    }
+  }, [selectedTicketId, ticketInput, ticketDetails, generatedWorklog, editableSummary, editableJiraFormat, timeHours, timeMinutes, worklogDate, userNotes])
 
   const loadJiraConfigAndWatchlist = async () => {
     try {
@@ -160,26 +225,45 @@ export default function JiraWorklogPage() {
   }
 
   // STEP 2 - BUTTON 2 HANDLER: Post Work Log on Jira (User-Initiated)
-  const handlePostToJira = () => {
+  const handlePostToJira = async () => {
     const formattedText = editableJiraFormat || editableSummary || generatedWorklog?.formattedJiraWorklog || ''
     if (!formattedText) {
       showToast('⚠️ Please click "Generate Work Description" first before posting to Jira.')
       return
     }
 
-    // 1. Copy formatted work log to user's clipboard
+    // 1. Auto-save work log to database & history
+    try {
+      const targetId = selectedTicketId || ticketInput || generatedWorklog?.ticketId
+      const payload = {
+        jiraTicketId: targetId,
+        jiraBaseUrl: ticketDetails?.jiraBaseUrl || jiraBaseUrl,
+        summary: ticketDetails?.summary || generatedWorklog?.summary,
+        timeSpent: getTimeSpentString(),
+        worklogDate,
+        worklogSummary: editableSummary || formattedText,
+        bulletPoints: generatedWorklog?.bulletPoints || [],
+        formattedJiraWorklog: editableJiraFormat || formattedText,
+      }
+      await saveJiraWorklog(payload)
+      loadSavedWorklogs()
+    } catch (err) {
+      console.warn('[PostToJira] Auto-save error:', err.message)
+    }
+
+    // 2. Copy formatted work log to user's clipboard
     navigator.clipboard.writeText(formattedText)
 
-    // 2. Open Jira Ticket Page in a new browser tab for 1-click manual paste
+    // 3. Open Jira Ticket Page in a new browser tab for 1-click manual paste
     const targetTicketId = ticketDetails?.ticketId || selectedTicketId || ticketInput
     const baseUrl = ticketDetails?.jiraBaseUrl || jiraBaseUrl
     const ticketUrl = baseUrl ? `${baseUrl}/browse/${targetTicketId}` : null
 
     if (ticketUrl) {
       window.open(ticketUrl, '_blank')
-      showToast(`🚀 Copied Work Log to clipboard & opened ${targetTicketId} in Jira!`)
+      showToast(`🚀 Work Log saved to DB, copied to clipboard & opened ${targetTicketId} in Jira!`)
     } else {
-      showToast('📋 Copied Work Log to clipboard! (Connect Jira in Settings to auto-open ticket URL)')
+      showToast('🚀 Work Log saved to DB & copied to clipboard!')
     }
   }
 
@@ -650,26 +734,90 @@ export default function JiraWorklogPage() {
           </div>
         )}
 
-        {/* SAVED WORK LOG HISTORY SECTION */}
+        {/* SAVED WORK LOG HISTORY SECTION WITH FILTER CONTROLS */}
         <div style={{
           background: 'rgba(15, 23, 42, 0.75)', border: '1px solid rgba(255, 255, 255, 0.08)',
           borderRadius: '1rem', padding: '1.5rem', backdropFilter: 'blur(12px)',
         }}>
-          <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#f8fafc', margin: '0 0 1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span>📜 Saved Work Log History</span>
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span>📜 Saved Work Log History</span>
+              <span style={{
+                padding: '0.15rem 0.6rem', borderRadius: '9999px',
+                background: 'rgba(99, 102, 241, 0.2)', color: '#818cf8',
+                fontSize: '0.75rem', fontWeight: 700,
+              }}>
+                {filteredSavedLogs.length} {filteredSavedLogs.length !== savedLogs.length ? `(of ${savedLogs.length})` : ''}
+              </span>
+            </h2>
+
+            {/* Filter Bar Controls */}
+            {savedLogs.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                {/* Search Input */}
+                <input
+                  type="text"
+                  value={historyFilterSearch}
+                  onChange={e => setHistoryFilterSearch(e.target.value)}
+                  placeholder="🔍 Search Ticket ID / keyword..."
+                  style={{
+                    padding: '0.45rem 0.85rem', borderRadius: '0.5rem',
+                    background: 'rgba(30, 41, 59, 0.8)', border: '1px solid rgba(255, 255, 255, 0.12)',
+                    color: '#f8fafc', fontSize: '0.8rem', outline: 'none', minWidth: '180px',
+                  }}
+                />
+
+                {/* Date Filter */}
+                <input
+                  type="date"
+                  value={historyFilterDate}
+                  onChange={e => setHistoryFilterDate(e.target.value)}
+                  style={{
+                    padding: '0.45rem 0.85rem', borderRadius: '0.5rem',
+                    background: 'rgba(30, 41, 59, 0.8)', border: '1px solid rgba(255, 255, 255, 0.12)',
+                    color: '#f8fafc', fontSize: '0.8rem', outline: 'none',
+                  }}
+                />
+
+                {/* Clear Filters Button */}
+                {(historyFilterSearch || historyFilterDate) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHistoryFilterSearch('')
+                      setHistoryFilterDate('')
+                    }}
+                    style={{
+                      padding: '0.45rem 0.75rem', borderRadius: '0.5rem', fontSize: '0.78rem',
+                      background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)',
+                      color: '#f87171', cursor: 'pointer', fontWeight: 700,
+                    }}
+                  >
+                    ✕ Clear
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
 
           {savedLogs.length === 0 ? (
             <div style={{ padding: '2.5rem 1rem', textAlign: 'center', color: '#64748b' }}>
               <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⏱️</div>
               <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#94a3b8' }}>No saved work logs yet</div>
               <p style={{ fontSize: '0.75rem', color: '#475569', marginTop: '0.25rem' }}>
-                Work descriptions that you generate and save will be listed here for reference.
+                Work logs that you generate and post will be automatically saved here for reference.
+              </p>
+            </div>
+          ) : filteredSavedLogs.length === 0 ? (
+            <div style={{ padding: '2rem 1rem', textAlign: 'center', color: '#64748b' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fbbf24' }}>No work logs matched your active filters</div>
+              <p style={{ fontSize: '0.75rem', color: '#475569', marginTop: '0.25rem' }}>
+                Try searching for a different Ticket ID keyword or clearing the date filter.
               </p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-              {savedLogs.map(log => {
+              {filteredSavedLogs.map(log => {
                 const id = log._id || log.id
                 return (
                   <div
@@ -713,7 +861,7 @@ export default function JiraWorklogPage() {
                           {timeAgo(log.createdAt)}
                         </span>
                         <button
-                          onClick={() => handleCopyClipboard(log.worklogSummary || log.formattedJiraWorklog)}
+                          onClick={() => handleCopyClipboard(log.formattedJiraWorklog || log.worklogSummary)}
                           title="Copy Work Description"
                           style={{
                             padding: '0.3rem 0.65rem', borderRadius: '0.375rem', fontSize: '0.75rem',
@@ -742,7 +890,7 @@ export default function JiraWorklogPage() {
                       lineHeight: 1.5, background: 'rgba(0,0,0,0.2)',
                       padding: '0.75rem 0.85rem', borderRadius: '0.5rem', whiteSpace: 'pre-wrap',
                     }}>
-                      {log.worklogSummary || log.formattedJiraWorklog}
+                      {log.formattedJiraWorklog || log.worklogSummary}
                     </p>
                   </div>
                 )
