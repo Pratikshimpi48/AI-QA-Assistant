@@ -22,7 +22,7 @@ const app = express()
 
 /* ── Middleware ─────────────────────────────────────── */
 app.use(cors({
-  origin:      env.CLIENT_URL || true,
+  origin:      true,
   methods:     ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   credentials: true,
 }))
@@ -42,19 +42,29 @@ app.use('/api/templates',      templatesRouter)
 app.use('/api/admin',          adminRouter)
 
 /* ── Serve Static React Client in Production ────────── */
+const publicPath     = path.join(__dirname, '../public')
 const clientDistPath = path.join(__dirname, '../../client/dist')
-if (fs.existsSync(clientDistPath)) {
-  app.use(express.static(clientDistPath))
+
+const staticDir = fs.existsSync(publicPath)
+  ? publicPath
+  : (fs.existsSync(clientDistPath) ? clientDistPath : null)
+
+if (staticDir) {
+  app.use(express.static(staticDir))
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api')) return next()
-    res.sendFile(path.join(clientDistPath, 'index.html'))
-  })
-} else {
-  app.use((req, res, next) => {
-    if (req.path.startsWith('/api')) return next()
-    res.status(404).json({ status: 'error', message: `Route ${req.method} ${req.path} not found` })
+    const indexPath = path.join(staticDir, 'index.html')
+    if (fs.existsSync(indexPath)) {
+      return res.sendFile(indexPath)
+    }
+    next()
   })
 }
+
+/* ── 404 handler ────────────────────────────────────── */
+app.use((req, res) => {
+  res.status(404).json({ status: 'error', message: `Route ${req.method} ${req.path} not found` })
+})
 
 /* ── Global error handler ───────────────────────────── */
 app.use((err, req, res, _next) => {
