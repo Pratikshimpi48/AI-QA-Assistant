@@ -140,10 +140,14 @@ export default function JiraWorklogPage() {
   const loadJiraConfigAndWatchlist = async () => {
     try {
       const cfgRes = await getJiraConfig()
-      if (cfgRes?.config?.hasToken) {
+      if (cfgRes?.config?.connected || cfgRes?.config?.jiraBaseUrl) {
         setJiraConnected(true)
         setJiraBaseUrl(cfgRes.config.jiraBaseUrl || '')
         setJiraEmail(cfgRes.config.jiraEmail || '')
+      } else {
+        setJiraConnected(false)
+        setJiraBaseUrl('')
+        setJiraEmail('')
       }
     } catch { /* ignore */ }
 
@@ -389,15 +393,15 @@ export default function JiraWorklogPage() {
               width: 44, height: 44, borderRadius: '0.75rem',
               background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '1.4rem', boxShadow: '0 0 16px rgba(99,102,241,0.4)',
+              fontSize: '1.4rem', boxShadow: '0 0 16px rgba(99,102,241,0.4)', flexShrink: 0,
             }}>
               ⏱️
             </div>
             <div>
-              <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#f8fafc', margin: 0, letterSpacing: '-0.02em' }}>
+              <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-text)', margin: 0, letterSpacing: '-0.02em' }}>
                 Jira Work Log Assistant
               </h1>
-              <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: 0 }}>
+              <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', margin: 0 }}>
                 Fetch your posted Jira comments, set work log date & time spent, and generate your personalized Work Description.
               </p>
             </div>
@@ -445,11 +449,11 @@ export default function JiraWorklogPage() {
 
         {/* STEP 1: INITIAL TICKET ID INPUT FIELD & FETCH BUTTON */}
         <div style={{
-          background: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(99, 102, 241, 0.25)',
+          background: 'var(--color-surface)', border: '1px solid var(--color-border)',
           borderRadius: '1rem', padding: '1.75rem', marginBottom: '2rem', backdropFilter: 'blur(16px)',
-          boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+          boxShadow: '0 10px 30px var(--color-shadow)',
         }}>
-          <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#f8fafc', margin: '0 0 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-text)', margin: '0 0 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span>1️⃣ Step 1: Enter Jira Ticket ID</span>
           </h2>
 
@@ -809,11 +813,12 @@ export default function JiraWorklogPage() {
 
         {/* SAVED WORK LOG HISTORY SECTION WITH FILTER CONTROLS */}
         <div style={{
-          background: 'rgba(15, 23, 42, 0.75)', border: '1px solid rgba(255, 255, 255, 0.08)',
+          background: 'var(--color-surface)', border: '1px solid var(--color-border)',
           borderRadius: '1rem', padding: '1.5rem', backdropFilter: 'blur(12px)',
+          boxShadow: '0 10px 30px var(--color-shadow)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-text)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span>📜 Saved Work Log History</span>
               <span style={{
                 padding: '0.15rem 0.6rem', borderRadius: '9999px',
@@ -835,8 +840,8 @@ export default function JiraWorklogPage() {
                   placeholder="🔍 Search Ticket ID / keyword..."
                   style={{
                     padding: '0.45rem 0.85rem', borderRadius: '0.5rem',
-                    background: 'rgba(30, 41, 59, 0.8)', border: '1px solid rgba(255, 255, 255, 0.12)',
-                    color: '#f8fafc', fontSize: '0.8rem', outline: 'none', minWidth: '180px',
+                    background: 'var(--color-surface-2)', border: '1px solid var(--color-border)',
+                    color: 'var(--color-text)', fontSize: '0.8rem', outline: 'none', minWidth: '180px',
                   }}
                 />
 
@@ -847,8 +852,8 @@ export default function JiraWorklogPage() {
                   onChange={e => setHistoryFilterDate(e.target.value)}
                   style={{
                     padding: '0.45rem 0.85rem', borderRadius: '0.5rem',
-                    background: 'rgba(30, 41, 59, 0.8)', border: '1px solid rgba(255, 255, 255, 0.12)',
-                    color: '#f8fafc', fontSize: '0.8rem', outline: 'none',
+                    background: 'var(--color-surface-2)', border: '1px solid var(--color-border)',
+                    color: 'var(--color-text)', fontSize: '0.8rem', outline: 'none',
                   }}
                 />
 

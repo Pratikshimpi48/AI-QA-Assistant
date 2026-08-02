@@ -1,5 +1,7 @@
 'use strict'
 
+const path      = require('path')
+const fs        = require('fs')
 const env       = require('./config/env')
 const express   = require('express')
 const cors      = require('cors')
@@ -20,7 +22,7 @@ const app = express()
 
 /* ── Middleware ─────────────────────────────────────── */
 app.use(cors({
-  origin:      env.CLIENT_URL,
+  origin:      env.CLIENT_URL || true,
   methods:     ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   credentials: true,
 }))
@@ -28,7 +30,7 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
 
-/* ── Routes ─────────────────────────────────────────── */
+/* ── API Routes ─────────────────────────────────────── */
 app.use('/api/health',         healthRouter)
 app.use('/api/generate',       generateRouter)
 app.use('/api/auth',           authRouter)
@@ -39,10 +41,20 @@ app.use('/api/notifications',  notificationsRouter)
 app.use('/api/templates',      templatesRouter)
 app.use('/api/admin',          adminRouter)
 
-/* ── 404 handler ────────────────────────────────────── */
-app.use((req, res) => {
-  res.status(404).json({ status: 'error', message: `Route ${req.method} ${req.path} not found` })
-})
+/* ── Serve Static React Client in Production ────────── */
+const clientDistPath = path.join(__dirname, '../../client/dist')
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath))
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next()
+    res.sendFile(path.join(clientDistPath, 'index.html'))
+  })
+} else {
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api')) return next()
+    res.status(404).json({ status: 'error', message: `Route ${req.method} ${req.path} not found` })
+  })
+}
 
 /* ── Global error handler ───────────────────────────── */
 app.use((err, req, res, _next) => {
@@ -54,15 +66,14 @@ app.use((err, req, res, _next) => {
 })
 
 /* ── Start server ───────────────────────────────────── */
-const PORT = Number(env.PORT)
+const PORT = Number(env.PORT) || 5000
 
 async function startServer() {
   await connectDB()
   jiraPoller.startPolling()
   app.listen(PORT, () => {
-    console.log(`\n🚀 AI QA Assistant API`)
-    console.log(`   ➜  http://localhost:${PORT}/api/health`)
-    console.log(`   ➜  Environment: ${env.NODE_ENV}\n`)
+    console.log(`\n🚀 AI QA Assistant Running on Port ${PORT}`)
+    console.log(`   ➜  Health check: http://localhost:${PORT}/api/health\n`)
   })
 }
 

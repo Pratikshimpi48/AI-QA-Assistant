@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import NotificationBell from './NotificationBell'
 
-const NAV_LINKS = [
+const PRIMARY_NAV_LINKS = [
   {
     id:   'nav-dashboard',
     to:   '/dashboard',
@@ -43,7 +43,7 @@ const NAV_LINKS = [
     label: 'History',
     icon: (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+        <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 16 14" />
       </svg>
     ),
   },
@@ -60,52 +60,34 @@ const NAV_LINKS = [
       </svg>
     ),
   },
-  {
-    id:   'nav-jira-watchlist',
-    to:   '/jira-watchlist',
-    label: 'Jira Watchlist',
-    authOnly: true,
-    icon: (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/>
-        <path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
-        <path d="M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S8 21.33 8 20.5v-5c0-.83.67-1.5 1.5-1.5z"/>
-        <path d="M3.5 14H5v1.5c0 .83-.67 1.5-1.5 1.5S2 16.33 2 15.5 2.67 14 3.5 14z"/>
-      </svg>
-    ),
-  },
-  {
-    id:   'nav-jira-worklog',
-    to:   '/jira-worklog',
-    label: 'Work Log',
-    authOnly: true,
-    icon: (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="12" r="10" />
-        <polyline points="12 6 12 12 16 14" />
-      </svg>
-    ),
-  },
-  {
-    id:   'nav-settings',
-    to:   '/settings',
-    label: 'Settings',
-    icon: (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
-      </svg>
-    ),
-  },
 ]
 
-export default function Navbar() {
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [scrolled, setScrolled] = useState(false)
-  const location = useLocation()
-  const { user, isAuthenticated, logout } = useAuth()
+const SETTINGS_NAV_LINK = {
+  id:   'nav-settings',
+  to:   '/settings',
+  label: 'Settings',
+  icon: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+    </svg>
+  ),
+}
 
-  useEffect(() => { setMenuOpen(false) }, [location.pathname])
+export default function Navbar() {
+  const [menuOpen, setMenuOpen]                   = useState(false)
+  const [scrolled, setScrolled]                   = useState(false)
+  const [jiraDropdownOpen, setJiraDropdownOpen]   = useState(false)
+  const jiraDropdownRef                            = useRef(null)
+  const location                                   = useLocation()
+  const { user, isAuthenticated, logout }          = useAuth()
+
+  const isJiraActive = location.pathname === '/jira-watchlist' || location.pathname === '/jira-worklog'
+
+  useEffect(() => {
+    setMenuOpen(false)
+    setJiraDropdownOpen(false)
+  }, [location.pathname])
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8)
@@ -113,24 +95,30 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (jiraDropdownRef.current && !jiraDropdownRef.current.contains(e.target)) {
+        setJiraDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   const headerStyle = {
     position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-    background: 'rgba(10, 13, 20, 0.94)',
+    background: 'var(--color-bg)',
     backdropFilter: 'blur(20px)',
     WebkitBackdropFilter: 'blur(20px)',
-    borderBottom: '1px solid rgba(255,255,255,0.08)',
+    borderBottom: '1px solid var(--color-border)',
     transition: 'all 0.3s ease',
-    boxShadow: scrolled ? '0 10px 30px rgba(0,0,0,0.6)' : 'none',
+    boxShadow: scrolled ? '0 10px 30px var(--color-shadow)' : 'none',
   }
 
   const getInitials = (name) => {
     if (!name) return 'U'
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
   }
-
-  const visibleLinks = NAV_LINKS.filter(
-    link => (!link.authOnly || isAuthenticated) && (!link.adminOnly || user?.role === 'admin')
-  )
 
   return (
     <header style={headerStyle}>
@@ -143,7 +131,7 @@ export default function Navbar() {
           height: '4.25rem',
           display: 'flex',
           alignItems: 'center',
-          justify: 'space-between',
+          justifyContent: 'space-between',
           boxSizing: 'border-box',
           gap: '1rem',
         }}
@@ -153,8 +141,8 @@ export default function Navbar() {
           <div
             style={{
               width: 36, height: 36, borderRadius: '0.65rem',
-              background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
-              boxShadow: '0 0 16px rgba(99,102,241,0.45)',
+              background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%)',
+              boxShadow: '0 0 16px rgba(99,102,241,0.35)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               flexShrink: 0,
             }}
@@ -166,21 +154,21 @@ export default function Navbar() {
           <div>
             <span style={{
               fontSize: '0.975rem', fontWeight: 800, letterSpacing: '-0.01em',
-              background: 'linear-gradient(90deg, #ffffff 0%, #c7d2fe 100%)',
+              background: 'var(--color-logo-gradient)',
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
               display: 'block', lineHeight: 1.1, whiteSpace: 'nowrap',
             }}>
               AI QA Assistant
             </span>
-            <span style={{ fontSize: '0.625rem', color: '#64748b', letterSpacing: '0.04em', fontWeight: 600, display: 'block', marginTop: 1, whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '0.625rem', color: 'var(--color-text-muted)', letterSpacing: '0.04em', fontWeight: 600, display: 'block', marginTop: 1, whiteSpace: 'nowrap' }}>
               Powered by Gemini & Groq
             </span>
           </div>
         </Link>
 
-        {/* Center: Desktop Nav Links (Centered in Header) */}
+        {/* Center: Desktop Nav Links */}
         <div id="nav-desktop-links" className="nav-desktop" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', margin: '0 auto', justifyContent: 'center' }}>
-          {visibleLinks.map((link) => (
+          {PRIMARY_NAV_LINKS.map((link) => (
             <NavLink
               key={link.id}
               id={link.id}
@@ -191,9 +179,9 @@ export default function Navbar() {
                 padding: '0.45rem 0.65rem', borderRadius: '0.5rem',
                 fontSize: '0.8rem', fontWeight: isActive ? 700 : 500,
                 textDecoration: 'none',
-                color: isActive ? '#818cf8' : '#94a3b8',
-                background: isActive ? 'rgba(99,102,241,0.14)' : 'transparent',
-                border: isActive ? '1px solid rgba(99,102,241,0.3)' : '1px solid transparent',
+                color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                background: isActive ? 'rgba(99,102,241,0.12)' : 'transparent',
+                border: isActive ? '1px solid var(--color-border)' : '1px solid transparent',
                 transition: 'all 0.2s ease', whiteSpace: 'nowrap', flexShrink: 0,
               })}
             >
@@ -201,9 +189,143 @@ export default function Navbar() {
               {link.label}
             </NavLink>
           ))}
+
+          {/* Jira Management Dropdown Header Option */}
+          {isAuthenticated && (
+            <div
+              ref={jiraDropdownRef}
+              style={{ position: 'relative' }}
+            >
+              <button
+                id="nav-jira-management-dropdown"
+                onClick={() => setJiraDropdownOpen((v) => !v)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.35rem',
+                  padding: '0.45rem 0.65rem', borderRadius: '0.5rem',
+                  fontSize: '0.8rem', fontWeight: isJiraActive ? 700 : 500,
+                  color: isJiraActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                  background: isJiraActive ? 'rgba(99,102,241,0.12)' : (jiraDropdownOpen ? 'var(--color-surface-2)' : 'transparent'),
+                  border: isJiraActive ? '1px solid var(--color-border)' : '1px solid transparent',
+                  cursor: 'pointer', outline: 'none', transition: 'all 0.2s ease', whiteSpace: 'nowrap', flexShrink: 0,
+                }}
+              >
+                <span style={{ opacity: 0.85, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                    <path d="M9 12h6" />
+                    <path d="M9 16h6" />
+                  </svg>
+                </span>
+                <span>Jira Management</span>
+                <svg
+                  width="10"
+                  height="10"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  style={{
+                    transition: 'transform 0.2s ease',
+                    transform: jiraDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                    opacity: 0.8,
+                  }}
+                >
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+
+              {jiraDropdownOpen && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 0.4rem)',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    minWidth: '185px',
+                    background: 'var(--color-surface)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '0.75rem',
+                    padding: '0.4rem',
+                    boxShadow: '0 12px 32px var(--color-shadow)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.2rem',
+                    zIndex: 110,
+                  }}
+                >
+                  <NavLink
+                    id="nav-jira-watchlist"
+                    to="/jira-watchlist"
+                    onClick={() => setJiraDropdownOpen(false)}
+                    style={({ isActive }) => ({
+                      display: 'flex', alignItems: 'center', gap: '0.5rem',
+                      padding: '0.5rem 0.75rem', borderRadius: '0.5rem',
+                      fontSize: '0.8rem', fontWeight: isActive ? 700 : 500,
+                      textDecoration: 'none',
+                      color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                      background: isActive ? 'rgba(99,102,241,0.14)' : 'transparent',
+                      transition: 'all 0.15s ease', whiteSpace: 'nowrap',
+                    })}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/>
+                      <path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+                      <path d="M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S8 21.33 8 20.5v-5c0-.83.67-1.5 1.5-1.5z"/>
+                      <path d="M3.5 14H5v1.5c0 .83-.67 1.5-1.5 1.5S2 16.33 2 15.5 2.67 14 3.5 14z"/>
+                    </svg>
+                    <span>Jira Watchlist</span>
+                  </NavLink>
+
+                  <NavLink
+                    id="nav-jira-worklog"
+                    to="/jira-worklog"
+                    onClick={() => setJiraDropdownOpen(false)}
+                    style={({ isActive }) => ({
+                      display: 'flex', alignItems: 'center', gap: '0.5rem',
+                      padding: '0.5rem 0.75rem', borderRadius: '0.5rem',
+                      fontSize: '0.8rem', fontWeight: isActive ? 700 : 500,
+                      textDecoration: 'none',
+                      color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                      background: isActive ? 'rgba(99,102,241,0.14)' : 'transparent',
+                      transition: 'all 0.15s ease', whiteSpace: 'nowrap',
+                    })}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    <span>Work Log</span>
+                  </NavLink>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Settings Nav Link */}
+          <NavLink
+            key={SETTINGS_NAV_LINK.id}
+            id={SETTINGS_NAV_LINK.id}
+            to={SETTINGS_NAV_LINK.to}
+            style={({ isActive }) => ({
+              display: 'flex', alignItems: 'center', gap: '0.35rem',
+              padding: '0.45rem 0.65rem', borderRadius: '0.5rem',
+              fontSize: '0.8rem', fontWeight: isActive ? 700 : 500,
+              textDecoration: 'none',
+              color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
+              background: isActive ? 'rgba(99,102,241,0.12)' : 'transparent',
+              border: isActive ? '1px solid var(--color-border)' : '1px solid transparent',
+              transition: 'all 0.2s ease', whiteSpace: 'nowrap', flexShrink: 0,
+            })}
+          >
+            <span style={{ opacity: 0.85, flexShrink: 0 }}>{SETTINGS_NAV_LINK.icon}</span>
+            {SETTINGS_NAV_LINK.label}
+          </NavLink>
         </div>
 
-        {/* Far Right: User Profile & Actions (Always flexShrink: 0) */}
+        {/* Far Right: User Profile & Actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexShrink: 0 }}>
           {isAuthenticated ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexShrink: 0 }}>
@@ -214,13 +336,13 @@ export default function Navbar() {
                 <div style={{
                   display: 'inline-flex', alignItems: 'center', gap: '0.45rem',
                   padding: '0.3rem 0.75rem 0.3rem 0.35rem', borderRadius: '9999px',
-                  background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.3)',
-                  color: '#ffffff', fontSize: '0.775rem', fontWeight: 600,
+                  background: 'rgba(99,102,241,0.12)', border: '1px solid var(--color-border)',
+                  color: 'var(--color-text)', fontSize: '0.775rem', fontWeight: 600,
                   cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s', flexShrink: 0,
                 }}>
                   <div style={{
                     width: 24, height: 24, borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
+                    background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '0.675rem', fontWeight: 800, color: '#fff',
                     boxShadow: '0 0 10px rgba(99,102,241,0.4)', flexShrink: 0,
@@ -240,16 +362,8 @@ export default function Navbar() {
                   display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
                   padding: '0.45rem 0.85rem', borderRadius: '0.5rem',
                   background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)',
-                  color: '#f87171', fontSize: '0.775rem', fontWeight: 700,
+                  color: '#ef4444', fontSize: '0.775rem', fontWeight: 700,
                   cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s', flexShrink: 0,
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.background = 'rgba(239,68,68,0.22)'
-                  e.currentTarget.style.borderColor = 'rgba(239,68,68,0.5)'
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.background = 'rgba(239,68,68,0.12)'
-                  e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)'
                 }}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -266,8 +380,8 @@ export default function Navbar() {
                 to="/login"
                 style={{
                   padding: '0.4rem 0.85rem', borderRadius: '0.5rem',
-                  color: '#c7d2fe', fontSize: '0.8rem', fontWeight: 600, textDecoration: 'none',
-                  border: '1px solid rgba(99,102,241,0.25)', background: 'rgba(99,102,241,0.08)',
+                  color: 'var(--color-primary)', fontSize: '0.8rem', fontWeight: 600, textDecoration: 'none',
+                  border: '1px solid var(--color-border)', background: 'rgba(99,102,241,0.08)',
                   whiteSpace: 'nowrap', flexShrink: 0,
                 }}
               >
@@ -278,8 +392,8 @@ export default function Navbar() {
                 style={{
                   padding: '0.4rem 0.85rem', borderRadius: '0.5rem',
                   color: '#ffffff', fontSize: '0.8rem', fontWeight: 600, textDecoration: 'none',
-                  background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                  boxShadow: '0 2px 10px rgba(99,102,241,0.4)',
+                  background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%)',
+                  boxShadow: '0 2px 10px rgba(99,102,241,0.3)',
                   whiteSpace: 'nowrap', flexShrink: 0,
                 }}
               >
@@ -288,7 +402,7 @@ export default function Navbar() {
             </div>
           )}
 
-          {/* Hamburger Menu for Mobile / Narrow Viewports */}
+          {/* Hamburger Menu for Mobile */}
           <button
             id="nav-hamburger"
             onClick={() => setMenuOpen((v) => !v)}
@@ -296,11 +410,11 @@ export default function Navbar() {
             style={{
               display: 'none', alignItems: 'center', justifyContent: 'center',
               width: 36, height: 36, borderRadius: '0.5rem',
-              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
+              background: 'var(--color-surface-2)', border: '1px solid var(--color-border)',
               cursor: 'pointer', flexShrink: 0,
             }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2">
               {menuOpen ? (
                 <>
                   <line x1="18" y1="6" x2="6" y2="18" />
@@ -323,14 +437,14 @@ export default function Navbar() {
         id="nav-mobile-menu"
         style={{
           overflow: 'hidden',
-          maxHeight: menuOpen ? '450px' : '0px',
+          maxHeight: menuOpen ? '520px' : '0px',
           transition: 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-          borderTop: menuOpen ? '1px solid rgba(255,255,255,0.07)' : '1px solid transparent',
-          background: 'rgba(10,13,20,0.98)',
+          borderTop: menuOpen ? '1px solid var(--color-border)' : '1px solid transparent',
+          background: 'var(--color-surface)',
         }}
       >
         <div style={{ padding: '0.75rem 1rem 1rem' }}>
-          {visibleLinks.map((link) => (
+          {PRIMARY_NAV_LINKS.map((link) => (
             <NavLink
               key={`mobile-${link.id}`}
               to={link.to}
@@ -341,9 +455,9 @@ export default function Navbar() {
                 marginBottom: '0.25rem',
                 fontSize: '0.9rem', fontWeight: isActive ? 600 : 500,
                 textDecoration: 'none',
-                color: isActive ? '#818cf8' : '#94a3b8',
+                color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
                 background: isActive ? 'rgba(99,102,241,0.12)' : 'transparent',
-                border: isActive ? '1px solid rgba(99,102,241,0.25)' : '1px solid transparent',
+                border: isActive ? '1px solid var(--color-border)' : '1px solid transparent',
               })}
             >
               <span style={{ opacity: 0.8 }}>{link.icon}</span>
@@ -352,12 +466,82 @@ export default function Navbar() {
           ))}
 
           {isAuthenticated && (
+            <div style={{ margin: '0.5rem 0 0.25rem', padding: '0 0.5rem' }}>
+              <div style={{
+                fontSize: '0.7rem', fontWeight: 800, color: 'var(--color-text-muted)',
+                textTransform: 'uppercase', letterSpacing: '0.06em', padding: '0.4rem 0.5rem 0.25rem',
+              }}>
+                Jira Management
+              </div>
+              <NavLink
+                to="/jira-watchlist"
+                style={({ isActive }) => ({
+                  display: 'flex', alignItems: 'center', gap: '0.75rem',
+                  padding: '0.65rem 1rem', borderRadius: '0.625rem',
+                  marginBottom: '0.25rem',
+                  fontSize: '0.875rem', fontWeight: isActive ? 600 : 500,
+                  textDecoration: 'none',
+                  color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                  background: isActive ? 'rgba(99,102,241,0.12)' : 'transparent',
+                  border: isActive ? '1px solid var(--color-border)' : '1px solid transparent',
+                })}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/>
+                  <path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+                  <path d="M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S8 21.33 8 20.5v-5c0-.83.67-1.5 1.5-1.5z"/>
+                  <path d="M3.5 14H5v1.5c0 .83-.67 1.5-1.5 1.5S2 16.33 2 15.5 2.67 14 3.5 14z"/>
+                </svg>
+                <span>Jira Watchlist</span>
+              </NavLink>
+
+              <NavLink
+                to="/jira-worklog"
+                style={({ isActive }) => ({
+                  display: 'flex', alignItems: 'center', gap: '0.75rem',
+                  padding: '0.65rem 1rem', borderRadius: '0.625rem',
+                  marginBottom: '0.25rem',
+                  fontSize: '0.875rem', fontWeight: isActive ? 600 : 500,
+                  textDecoration: 'none',
+                  color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                  background: isActive ? 'rgba(99,102,241,0.12)' : 'transparent',
+                  border: isActive ? '1px solid var(--color-border)' : '1px solid transparent',
+                })}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                <span>Work Log</span>
+              </NavLink>
+            </div>
+          )}
+
+          <NavLink
+            key={`mobile-${SETTINGS_NAV_LINK.id}`}
+            to={SETTINGS_NAV_LINK.to}
+            style={({ isActive }) => ({
+              display: 'flex', alignItems: 'center', gap: '0.75rem',
+              padding: '0.75rem 1rem', borderRadius: '0.625rem',
+              marginBottom: '0.25rem',
+              fontSize: '0.9rem', fontWeight: isActive ? 600 : 500,
+              textDecoration: 'none',
+              color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
+              background: isActive ? 'rgba(99,102,241,0.12)' : 'transparent',
+              border: isActive ? '1px solid var(--color-border)' : '1px solid transparent',
+            })}
+          >
+            <span style={{ opacity: 0.8 }}>{SETTINGS_NAV_LINK.icon}</span>
+            {SETTINGS_NAV_LINK.label}
+          </NavLink>
+
+          {isAuthenticated && (
             <button
               onClick={logout}
               style={{
                 width: '100%', marginTop: '0.75rem', padding: '0.75rem 1rem',
                 borderRadius: '0.625rem', background: 'rgba(239,68,68,0.15)',
-                border: '1px solid rgba(239,68,68,0.3)', color: '#f87171',
+                border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444',
                 fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
               }}

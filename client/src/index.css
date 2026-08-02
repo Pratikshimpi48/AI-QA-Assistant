@@ -1,19 +1,99 @@
 @import "tailwindcss";
 
-/* ── Design Tokens ─────────────────────────────────────────── */
-:root {
-  --color-bg:          #0a0d14;
-  --color-surface:     #111827;
-  --color-surface-2:   #1a2236;
-  --color-border:      rgba(255,255,255,0.08);
-  --color-primary:     #6366f1;
+/* ── Theme Definitions ─────────────────────────────────────── */
+:root, [data-theme="dark"] {
+  --color-bg:            #0a0d14;
+  --color-surface:       #111827;
+  --color-surface-2:     #1a2236;
+  --color-border:        rgba(255, 255, 255, 0.08);
+  --color-primary:       #6366f1;
   --color-primary-hover: #818cf8;
-  --color-accent:      #06b6d4;
-  --color-text:        #f1f5f9;
-  --color-text-muted:  #94a3b8;
-  --radius-lg:         1rem;
-  --radius-xl:         1.5rem;
+  --color-accent:        #06b6d4;
+  --color-text:          #f1f5f9;
+  --color-text-muted:    #94a3b8;
+  --color-logo-gradient: linear-gradient(90deg, #ffffff 0%, #c7d2fe 100%);
+  --color-card-bg:       rgba(15, 23, 42, 0.85);
+  --color-shadow:        rgba(0, 0, 0, 0.5);
+  --radius-lg:           1rem;
+  --radius-xl:           1.5rem;
   font-family: 'Inter', sans-serif;
+  color-scheme: dark;
+}
+
+[data-theme="purple"] {
+  --color-bg:            #0f0919;
+  --color-surface:       #170e28;
+  --color-surface-2:     #23153c;
+  --color-border:        rgba(168, 85, 247, 0.18);
+  --color-primary:       #a855f7;
+  --color-primary-hover: #c084fc;
+  --color-accent:        #ec4899;
+  --color-text:          #faf5ff;
+  --color-text-muted:    #c084fc;
+  --color-logo-gradient: linear-gradient(90deg, #ffffff 0%, #e9d5ff 100%);
+  --color-card-bg:       rgba(23, 14, 40, 0.85);
+  --color-shadow:        rgba(0, 0, 0, 0.5);
+  --radius-lg:           1rem;
+  --radius-xl:           1.5rem;
+  font-family: 'Inter', sans-serif;
+  color-scheme: dark;
+}
+
+[data-theme="ocean"] {
+  --color-bg:            #08131e;
+  --color-surface:       #0e1e2e;
+  --color-surface-2:     #162c42;
+  --color-border:        rgba(20, 184, 166, 0.18);
+  --color-primary:       #14b8a6;
+  --color-primary-hover: #2dd4bf;
+  --color-accent:        #38bdf8;
+  --color-text:          #f0fdfa;
+  --color-text-muted:    #99f6e4;
+  --color-logo-gradient: linear-gradient(90deg, #ffffff 0%, #ccfbf1 100%);
+  --color-card-bg:       rgba(14, 30, 46, 0.85);
+  --color-shadow:        rgba(0, 0, 0, 0.5);
+  --radius-lg:           1rem;
+  --radius-xl:           1.5rem;
+  font-family: 'Inter', sans-serif;
+  color-scheme: dark;
+}
+
+[data-theme="ember"] {
+  --color-bg:            #120d0e;
+  --color-surface:       #1c1316;
+  --color-surface-2:     #2b1c21;
+  --color-border:        rgba(244, 63, 94, 0.18);
+  --color-primary:       #f43f5e;
+  --color-primary-hover: #fb7185;
+  --color-accent:        #f59e0b;
+  --color-text:          #fff1f2;
+  --color-text-muted:    #fda4af;
+  --color-logo-gradient: linear-gradient(90deg, #ffffff 0%, #fecdd3 100%);
+  --color-card-bg:       rgba(28, 19, 22, 0.85);
+  --color-shadow:        rgba(0, 0, 0, 0.5);
+  --radius-lg:           1rem;
+  --radius-xl:           1.5rem;
+  font-family: 'Inter', sans-serif;
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  --color-bg:            #f8fafc;
+  --color-surface:       #ffffff;
+  --color-surface-2:     #e2e8f0;
+  --color-border:        rgba(0, 0, 0, 0.12);
+  --color-primary:       #4f46e5;
+  --color-primary-hover: #4338ca;
+  --color-accent:        #0284c7;
+  --color-text:          #0f172a;
+  --color-text-muted:    #475569;
+  --color-logo-gradient: linear-gradient(90deg, #0f172a 0%, #4338ca 100%);
+  --color-card-bg:       #ffffff;
+  --color-shadow:        rgba(0, 0, 0, 0.08);
+  --radius-lg:           1rem;
+  --radius-xl:           1.5rem;
+  font-family: 'Inter', sans-serif;
+  color-scheme: light;
 }
 
 /* ── Base ──────────────────────────────────────────────────── */
@@ -24,6 +104,7 @@ body {
   color: var(--color-text);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* ── Scrollbar ─────────────────────────────────────────────── */

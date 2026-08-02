@@ -208,7 +208,7 @@ export default function ProfilePage() {
 
           <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
-              <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: '#f8fafc' }}>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-text)' }}>
                 {user.name}
               </h2>
               <span style={{
@@ -220,13 +220,13 @@ export default function ProfilePage() {
               </span>
             </div>
 
-            <p style={{ margin: '0 0 0.5rem', fontSize: '0.9rem', color: '#94a3b8' }}>
+            <p style={{ margin: '0 0 0.5rem', fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>
               {user.email}
             </p>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', fontSize: '0.78rem', color: '#64748b', flexWrap: 'wrap' }}>
-              <span>🎂 DOB: <strong style={{ color: '#cbd5e1' }}>{formatDate(user.dob)}</strong></span>
-              <span>📅 Joined: <strong style={{ color: '#cbd5e1' }}>{formatDate(user.createdAt)}</strong></span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', fontSize: '0.78rem', color: 'var(--color-text-muted)', flexWrap: 'wrap' }}>
+              <span>🎂 DOB: <strong style={{ color: 'var(--color-text)' }}>{formatDate(user.dob)}</strong></span>
+              <span>📅 Joined: <strong style={{ color: 'var(--color-text)' }}>{formatDate(user.createdAt)}</strong></span>
             </div>
           </div>
         </div>

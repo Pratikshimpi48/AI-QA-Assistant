@@ -142,12 +142,12 @@ export default function NotificationBell() {
             right: 0,
             width: 'min(380px, 90vw)',
             maxHeight: '480px',
-            background: 'rgba(15, 23, 42, 0.97)',
+            background: 'var(--color-surface)',
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
+            border: '1px solid var(--color-border)',
             borderRadius: '1rem',
-            boxShadow: '0 20px 45px rgba(0, 0, 0, 0.7), 0 0 20px rgba(99, 102, 241, 0.15)',
+            boxShadow: '0 20px 45px var(--color-shadow)',
             zIndex: 1000,
             display: 'flex',
             flexDirection: 'column',
@@ -158,11 +158,11 @@ export default function NotificationBell() {
           <div style={{
             padding: '0.9rem 1.15rem',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            borderBottom: '1px solid var(--color-border)',
             background: 'rgba(255, 255, 255, 0.02)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f8fafc' }}>
+              <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-text)' }}>
                 Notifications
               </span>
               {unreadCount > 0 && (
