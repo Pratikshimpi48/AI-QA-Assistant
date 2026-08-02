@@ -41,7 +41,7 @@ app.use('/api/notifications',  notificationsRouter)
 app.use('/api/templates',      templatesRouter)
 app.use('/api/admin',          adminRouter)
 
-/* ── Serve Static React Client in Production ────────── */
+/* ── Serve Static React Client (Express 5 Compatible) ── */
 const publicPath     = path.join(__dirname, '../public')
 const clientDistPath = path.join(__dirname, '../../client/dist')
 
@@ -51,18 +51,16 @@ const staticDir = fs.existsSync(publicPath)
 
 if (staticDir) {
   app.use(express.static(staticDir))
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api')) return next()
+}
+
+/* ── SPA Fallback & 404 Handler ────────────────────── */
+app.use((req, res) => {
+  if (req.method === 'GET' && !req.path.startsWith('/api') && staticDir) {
     const indexPath = path.join(staticDir, 'index.html')
     if (fs.existsSync(indexPath)) {
       return res.sendFile(indexPath)
     }
-    next()
-  })
-}
-
-/* ── 404 handler ────────────────────────────────────── */
-app.use((req, res) => {
+  }
   res.status(404).json({ status: 'error', message: `Route ${req.method} ${req.path} not found` })
 })
 
