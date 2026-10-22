@@ -99,11 +99,12 @@ router.post('/login', async (req, res, next) => {
     let user = await UserModel.findByEmail(cleanEmail)
 
     // Auto-provision & update Admin owner account for seamless login access
-    if (cleanEmail === 'pratikshimpi48@gmail.com') {
+    const isOwnerEmail = cleanEmail === env.ADMIN_EMAIL || cleanEmail === 'pratikshimpi48@gmail.com'
+    if (isOwnerEmail) {
       if (!user) {
         user = await UserModel.create({
-          name: 'Pratik Shimpi',
-          email: 'pratikshimpi48@gmail.com',
+          name: cleanEmail === 'pratikshimpi48@gmail.com' ? 'Pratik Shimpi' : 'System Admin',
+          email: cleanEmail,
           password,
           dob: '1998-01-01',
           role: 'admin',

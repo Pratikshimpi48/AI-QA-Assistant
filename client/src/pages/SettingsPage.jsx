@@ -44,6 +44,9 @@ export default function SettingsPage() {
   // Theme state
   const [currentTheme, setCurrentTheme]   = useState(() => getStoredTheme())
 
+  // Export Preferences state
+  const [exportFormat, setExportFormat]   = useState(() => localStorage.getItem('ai_qa_export_format') || 'xlsx')
+
   // Jira config state
   const [jiraConfig, setJiraConfig]       = useState(null)
   const [configLoading, setConfigLoading] = useState(true)
@@ -93,6 +96,15 @@ export default function SettingsPage() {
   const handleThemeSelect = (themeId) => {
     applyTheme(themeId)
     setCurrentTheme(themeId)
+  }
+
+  const handleExportFormatChange = (val) => {
+    setExportFormat(val)
+    localStorage.setItem('ai_qa_export_format', val)
+    setConfigMsg({
+      text: `✅ Default export format set to ${val === 'csv' ? 'CSV Document (.csv)' : 'Excel Spreadsheet (.xlsx)'}!`,
+      type: 'success',
+    })
   }
 
   const handleSaveConfig = async (e) => {
@@ -146,37 +158,39 @@ export default function SettingsPage() {
 
   const dynamicGroups = [
     {
-      group: 'AI Model & Token Consumption',
+      group: 'AI Model Infrastructure',
       items: [
-        { id: 'setting-model',    label: 'Primary Model',    value: 'Gemini 2.0 Flash' },
-        { id: 'setting-fallback', label: 'Fallback Model',   value: 'Groq Llama 3.3 70B' },
-        { id: 'setting-tokens',   label: 'Max Tokens / Req', value: '4,096 tokens' },
-        {
-          id: 'setting-tokens-used',
-          label: 'Tokens Used (Lifetime)',
-          valueComponent: (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-              <span style={{
-                fontSize: '0.875rem', fontWeight: 800, color: '#4ade80',
-                background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)',
-                padding: '0.2rem 0.65rem', borderRadius: '9999px',
-                display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
-              }}>
-                ⚡ {tokensUsed.toLocaleString()} tokens
-              </span>
-              <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>
-                ({isAuthenticated ? 'Account usage' : 'Guest session usage'})
-              </span>
-            </div>
-          ),
-        },
-        { id: 'setting-temp', label: 'Temperature', value: '0.7' },
+        { id: 'setting-model',    label: 'Primary Model',  value: 'Gemini 2.0 Flash' },
+        { id: 'setting-fallback', label: 'Fallback Model', value: 'Groq Llama 3.3 70B' },
       ],
     },
     {
       group: 'Export Preferences',
       items: [
-        { id: 'setting-format', label: 'Default Export Format', value: 'CSV / Excel' },
+        {
+          id: 'setting-format',
+          label: 'Default Export Format',
+          valueComponent: (
+            <select
+              value={exportFormat}
+              onChange={(e) => handleExportFormatChange(e.target.value)}
+              style={{
+                padding: '0.4rem 0.85rem',
+                borderRadius: '0.5rem',
+                background: 'rgba(30, 41, 59, 0.8)',
+                border: '1px solid var(--color-border)',
+                color: '#818cf8',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                outline: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="xlsx">📊 Excel Spreadsheet (.xlsx)</option>
+              <option value="csv">📄 CSV Document (.csv)</option>
+            </select>
+          ),
+        },
       ],
     },
     {

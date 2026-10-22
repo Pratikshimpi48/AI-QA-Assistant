@@ -538,6 +538,45 @@ router.post('/worklog/save', optionalAuth, async (req, res, next) => {
 })
 
 /**
+ * POST /api/jira/worklog/bulk-save — save multiple work log entries locally
+ */
+router.post('/worklog/bulk-save', optionalAuth, async (req, res, next) => {
+  try {
+    const uId = getUserId(req)
+    const { worklogs } = req.body
+
+    if (!Array.isArray(worklogs) || worklogs.length === 0) {
+      return res.status(400).json({ status: 'error', message: 'worklogs array is required and cannot be empty.' })
+    }
+
+    const savedRecords = []
+    for (const item of worklogs) {
+      if (!item.jiraTicketId) continue
+      const record = await WorklogModel.create({
+        userId: uId,
+        jiraTicketId: item.jiraTicketId,
+        jiraWorklogId: item.jiraWorklogId || '',
+        jiraBaseUrl: item.jiraBaseUrl || '',
+        summary: item.summary || item.worklogSummary || 'CSV Batch Worklog Entry',
+        timeSpent: item.timeSpent || '1h',
+        worklogDate: item.worklogDate || new Date().toISOString().split('T')[0],
+        worklogSummary: item.worklogSummary || item.workDescription || '',
+        bulletPoints: item.bulletPoints || [],
+        formattedJiraWorklog: item.formattedJiraWorklog || item.workDescription || '',
+      })
+      savedRecords.push(record)
+    }
+
+    return res.status(201).json({
+      status: 'ok',
+      savedCount: savedRecords.length,
+      worklogs: savedRecords,
+      message: `${savedRecords.length} work log entries saved locally.`,
+    })
+  } catch (err) { next(err) }
+})
+
+/**
  * GET /api/jira/worklogs — get user's saved work log history
  */
 router.get('/worklogs', optionalAuth, async (req, res, next) => {

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 GitHub Discussions & Questions
+    url: https://github.com/Pratikshimpi48/AI-QA-Assistant/discussions
+    about: Please ask questions and discuss ideas in our GitHub Discussions forum.
+  - name: 🛡️ Security Vulnerability Report
+    url: mailto:pratikshimpi48@gmail.com
+    about: Privately report security vulnerabilities directly to the maintainer.

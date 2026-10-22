@@ -8,6 +8,7 @@ import {
   getJiraTicketDetails,
   generateJiraWorklog,
   saveJiraWorklog,
+  bulkSaveJiraWorklogs,
   getJiraWorklogs,
   deleteJiraWorklog,
   deleteJiraCommentOnJira,
@@ -31,6 +32,15 @@ export default function JiraWorklogPage() {
   const [jiraConnected, setJiraConnected] = useState(false)
   const [jiraBaseUrl, setJiraBaseUrl]     = useState('')
   const [jiraEmail, setJiraEmail]         = useState('')
+
+  // Mode Selection: Single Worklog Generator vs Batch CSV Upload
+  const [worklogMode, setWorklogMode]     = useState('single')
+
+  // CSV Batch Upload States
+  const [csvWorklogs, setCsvWorklogs]     = useState([])
+  const [csvFileName, setCsvFileName]     = useState('')
+  const [bulkProcessing, setBulkProcessing] = useState(false)
+  const [bulkProgress, setBulkProgress]   = useState({ current: 0, total: 0 })
 
   // Step 1: Watchlist & Ticket selection
   const [watchlist, setWatchlist]         = useState([])
@@ -313,6 +323,248 @@ export default function JiraWorklogPage() {
     }
   }
 
+  /* ── CSV Worklog Helper & Handler Functions ──────────────── */
+
+  const normalizeDate = (str) => {
+    if (!str) return new Date().toISOString().split('T')[0]
+    const trimmed = str.trim()
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed
+    const parsed = new Date(trimmed)
+    if (!isNaN(parsed.getTime())) {
+      const year = parsed.getFullYear()
+      const month = String(parsed.getMonth() + 1).padStart(2, '0')
+      const day = String(parsed.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+    return trimmed
+  }
+
+  const normalizeHours = (val) => {
+    if (!val) return '1h'
+    const str = String(val).trim()
+    if (str.toLowerCase().includes('h') || str.toLowerCase().includes('m')) return str
+    const num = parseFloat(str)
+    if (isNaN(num)) return str || '1h'
+    const hrs = Math.floor(num)
+    const mins = Math.round((num - hrs) * 60)
+    const parts = []
+    if (hrs > 0) parts.push(`${hrs}h`)
+    if (mins > 0) parts.push(`${mins}m`)
+    return parts.length > 0 ? parts.join(' ') : '0m'
+  }
+
+  const parseCSVText = (text) => {
+    const lines = []
+    let currentLine = []
+    let currentField = ''
+    let insideQuote = false
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i]
+      const nextChar = text[i + 1]
+
+      if (char === '"') {
+        if (insideQuote && nextChar === '"') {
+          currentField += '"'
+          i++
+        } else {
+          insideQuote = !insideQuote
+        }
+      } else if (char === ',' && !insideQuote) {
+        currentLine.push(currentField.trim())
+        currentField = ''
+      } else if ((char === '\r' || char === '\n') && !insideQuote) {
+        if (char === '\r' && nextChar === '\n') i++
+        currentLine.push(currentField.trim())
+        if (currentLine.some(cell => cell.length > 0)) {
+          lines.push(currentLine)
+        }
+        currentLine = []
+        currentField = ''
+      } else {
+        currentField += char
+      }
+    }
+
+    if (currentField || currentLine.length > 0) {
+      currentLine.push(currentField.trim())
+      if (currentLine.some(cell => cell.length > 0)) {
+        lines.push(currentLine)
+      }
+    }
+
+    if (lines.length < 2) return []
+
+    const headers = lines[0].map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ''))
+    
+    const getIdx = (keys) => headers.findIndex(h => keys.some(k => h.includes(k)))
+    
+    const dateIdx   = getIdx(['date', 'day', 'started'])
+    const ticketIdx = getIdx(['ticket', 'ticketid', 'ticket key', 'issue', 'key'])
+    const descIdx   = getIdx(['jiraworklog', 'worklog', 'description', 'work', 'summary', 'comment', 'notes'])
+    const timeIdx   = getIdx(['hours', 'hour', 'time', 'spent', 'duration'])
+    const statusIdx = getIdx(['status', 'flag', 'state'])
+
+    const rows = []
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i]
+      const rawDate   = (dateIdx !== -1 ? line[dateIdx] : line[0]) || ''
+      const rawTicket = (ticketIdx !== -1 ? line[ticketIdx] : line[1]) || ''
+      const rawDesc   = (descIdx !== -1 ? line[descIdx] : line[2]) || ''
+      const rawHours  = (timeIdx !== -1 ? line[timeIdx] : line[3]) || ''
+
+      if (!rawTicket && !rawDesc) continue
+
+      const ticketId    = rawTicket.toUpperCase().trim()
+      const worklogDate = normalizeDate(rawDate)
+      const timeSpent   = normalizeHours(rawHours)
+      const workDesc    = rawDesc.trim()
+
+      rows.push({
+        id: `csv_${i}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        jiraTicketId: ticketId,
+        timeSpent: timeSpent,
+        worklogDate: worklogDate,
+        workDescription: workDesc,
+        status: ticketId ? 'ready' : 'invalid',
+        errorReason: ticketId ? '' : 'Missing Ticket ID',
+      })
+    }
+
+    return rows
+  }
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setCsvFileName(file.name)
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const text = event.target?.result || ''
+      const parsed = parseCSVText(text)
+      if (parsed.length === 0) {
+        setErrorMsg('No valid worklog rows found in the CSV file. Please download and check the sample template.')
+      } else {
+        setCsvWorklogs(parsed)
+        setErrorMsg('')
+        showToast(`✅ Successfully parsed ${parsed.length} worklog rows from ${file.name}!`)
+      }
+    }
+    reader.readAsText(file)
+  }
+
+  const downloadSampleCSVTemplate = () => {
+    const sampleContent = 'Date,Ticket ID,Jira Worklog,Hours,Status\n'
+
+    const blob = new Blob([sampleContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.setAttribute('href', url)
+    link.setAttribute('download', 'jira_worklogs_template.csv')
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const handleUpdateCsvRow = (id, field, value) => {
+    setCsvWorklogs(prev => prev.map(row => {
+      if (row.id !== id) return row
+      const updated = { ...row, [field]: value }
+      if (field === 'jiraTicketId') {
+        updated.status = value.trim() ? 'ready' : 'invalid'
+        updated.errorReason = value.trim() ? '' : 'Missing Ticket ID'
+      }
+      return updated
+    }))
+  }
+
+  const handleDeleteCsvRow = (id) => {
+    setCsvWorklogs(prev => prev.filter(row => row.id !== id))
+  }
+
+  const handleBulkPostToJira = async () => {
+    const validRows = csvWorklogs.filter(r => r.status === 'ready' || r.status === 'error')
+    if (validRows.length === 0) {
+      showToast('⚠️ No valid worklog entries to post.')
+      return
+    }
+
+    setBulkProcessing(true)
+    setBulkProgress({ current: 0, total: validRows.length })
+    showToast(`🚀 Starting bulk worklog post for ${validRows.length} entries...`)
+
+    let successCount = 0
+    for (let i = 0; i < validRows.length; i++) {
+      const row = validRows[i]
+      setBulkProgress({ current: i + 1, total: validRows.length })
+      
+      setCsvWorklogs(prev => prev.map(r => r.id === row.id ? { ...r, status: 'posting' } : r))
+
+      try {
+        const postRes = await postJiraWorklogDirect({
+          ticketId: row.jiraTicketId,
+          timeSpent: row.timeSpent,
+          worklogDate: row.worklogDate,
+          workDescription: row.workDescription,
+        })
+
+        const returnedWlId = postRes?.jiraWorklogId || postRes?.result?.id || ''
+
+        try {
+          await saveJiraWorklog({
+            jiraTicketId: row.jiraTicketId,
+            jiraWorklogId: returnedWlId,
+            jiraBaseUrl: jiraBaseUrl,
+            summary: row.workDescription.slice(0, 60),
+            timeSpent: row.timeSpent,
+            worklogDate: row.worklogDate,
+            worklogSummary: row.workDescription,
+            formattedJiraWorklog: row.workDescription,
+          })
+        } catch { /* ignore */ }
+
+        successCount++
+        setCsvWorklogs(prev => prev.map(r => r.id === row.id ? { ...r, status: 'posted', errorReason: '' } : r))
+      } catch (err) {
+        const errMsg = err.response?.data?.message || 'Failed to post to Jira'
+        setCsvWorklogs(prev => prev.map(r => r.id === row.id ? { ...r, status: 'error', errorReason: errMsg } : r))
+      }
+    }
+
+    setBulkProcessing(false)
+    loadSavedWorklogs()
+    showToast(`🎉 Bulk post completed! ${successCount} of ${validRows.length} worklogs posted to Jira.`)
+  }
+
+  const handleBulkSaveLocal = async () => {
+    const validRows = csvWorklogs.filter(r => r.jiraTicketId.trim())
+    if (validRows.length === 0) {
+      showToast('⚠️ No valid worklog entries to save.')
+      return
+    }
+
+    try {
+      setSavingLog(true)
+      const payload = validRows.map(r => ({
+        jiraTicketId: r.jiraTicketId,
+        jiraBaseUrl: jiraBaseUrl,
+        summary: r.workDescription.slice(0, 60),
+        timeSpent: r.timeSpent,
+        worklogDate: r.worklogDate,
+        worklogSummary: r.workDescription,
+        formattedJiraWorklog: r.workDescription,
+      }))
+
+      await bulkSaveJiraWorklogs(payload)
+      loadSavedWorklogs()
+      showToast(`💾 Saved ${validRows.length} worklog entries to local history!`)
+    } catch (err) {
+      setErrorMsg(err.response?.data?.message || 'Failed to save batch worklogs.')
+    } finally {
+      setSavingLog(false)
+    }
+  }
+
   const handleDeletePostedWorklog = async (log) => {
     const localId = log._id || log.id
     const targetTicketId = log.jiraTicketId
@@ -437,6 +689,39 @@ export default function JiraWorklogPage() {
           </div>
         </div>
 
+        {/* MODE SELECTOR TAB BAR */}
+        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.75rem' }}>
+          <button
+            type="button"
+            onClick={() => setWorklogMode('single')}
+            style={{
+              flex: 1, padding: '0.85rem 1.25rem', borderRadius: '0.75rem', fontSize: '0.92rem', fontWeight: 800,
+              background: worklogMode === 'single' ? 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)' : 'rgba(30, 41, 59, 0.7)',
+              border: worklogMode === 'single' ? 'none' : '1px solid rgba(255, 255, 255, 0.12)',
+              color: '#ffffff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem',
+              boxShadow: worklogMode === 'single' ? '0 4px 18px rgba(99, 102, 241, 0.4)' : 'none',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <span>⚡ Single Ticket Worklog Generator</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setWorklogMode('csv')}
+            style={{
+              flex: 1, padding: '0.85rem 1.25rem', borderRadius: '0.75rem', fontSize: '0.92rem', fontWeight: 800,
+              background: worklogMode === 'csv' ? 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)' : 'rgba(30, 41, 59, 0.7)',
+              border: worklogMode === 'csv' ? 'none' : '1px solid rgba(255, 255, 255, 0.12)',
+              color: '#ffffff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem',
+              boxShadow: worklogMode === 'csv' ? '0 4px 18px rgba(99, 102, 241, 0.4)' : 'none',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <span>📁 Batch CSV Worklog Upload</span>
+          </button>
+        </div>
+
         {errorMsg && (
           <div style={{
             marginBottom: '1.5rem', padding: '0.85rem 1.15rem', borderRadius: '0.75rem',
@@ -447,8 +732,223 @@ export default function JiraWorklogPage() {
           </div>
         )}
 
+        {/* CSV BATCH UPLOAD WORKSPACE */}
+        {worklogMode === 'csv' && (
+          <div style={{
+            background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+            borderRadius: '1rem', padding: '1.75rem', marginBottom: '2rem', backdropFilter: 'blur(16px)',
+            boxShadow: '0 10px 30px var(--color-shadow)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-text)', margin: '0 0 0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span>📁 Batch CSV Worklog Import</span>
+                </h2>
+                <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', margin: 0 }}>
+                  Upload a CSV file containing your worklog entries (<code style={{ color: '#818cf8' }}>Date</code>, <code style={{ color: '#818cf8' }}>Ticket ID</code>, <code style={{ color: '#818cf8' }}>Jira Worklog</code>, <code style={{ color: '#818cf8' }}>Hours</code>, <code style={{ color: '#818cf8' }}>Status</code>).
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={downloadSampleCSVTemplate}
+                style={{
+                  padding: '0.6rem 1.15rem', borderRadius: '0.5rem', fontSize: '0.82rem', fontWeight: 700,
+                  background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.4)',
+                  color: '#818cf8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <span>📥 Download Sample CSV Template</span>
+              </button>
+            </div>
+
+            {/* Drag & Drop Upload Zone */}
+            <div style={{
+              border: '2px dashed rgba(99, 102, 241, 0.4)', borderRadius: '0.75rem',
+              padding: '2rem 1.5rem', textAlign: 'center', background: 'rgba(15, 23, 42, 0.4)',
+              marginBottom: '1.5rem', cursor: 'pointer', position: 'relative',
+            }}>
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleFileUpload}
+                style={{
+                  position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer',
+                }}
+              />
+              <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>📄</div>
+              <p style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-text)', margin: '0 0 0.25rem' }}>
+                {csvFileName ? `File selected: ${csvFileName}` : 'Click or Drag & Drop your .CSV worklog file here'}
+              </p>
+              <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: 0 }}>
+                Supports columns: Date, Ticket ID, Jira Worklog, Hours, Status
+              </p>
+            </div>
+
+            {/* CSV Rows Table Preview */}
+            {csvWorklogs.length > 0 && (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f8fafc' }}>
+                      Batch Entries ({csvWorklogs.length})
+                    </span>
+                    <span style={{
+                      padding: '0.2rem 0.6rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 700,
+                      background: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', border: '1px solid rgba(34, 197, 94, 0.3)',
+                    }}>
+                      {csvWorklogs.filter(r => r.status === 'ready' || r.status === 'posted').length} Valid
+                    </span>
+                    {csvWorklogs.some(r => r.status === 'invalid' || r.status === 'error') && (
+                      <span style={{
+                        padding: '0.2rem 0.6rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 700,
+                        background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)',
+                      }}>
+                        {csvWorklogs.filter(r => r.status === 'invalid' || r.status === 'error').length} Errors
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '0.6rem' }}>
+                    <button
+                      type="button"
+                      onClick={handleBulkSaveLocal}
+                      disabled={savingLog || bulkProcessing}
+                      style={{
+                        padding: '0.55rem 1rem', borderRadius: '0.5rem', fontSize: '0.82rem', fontWeight: 700,
+                        background: 'rgba(14, 165, 233, 0.2)', border: '1px solid rgba(14, 165, 233, 0.4)',
+                        color: '#38bdf8', cursor: savingLog || bulkProcessing ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {savingLog ? 'Saving...' : '💾 Save Batch to Local History'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleBulkPostToJira}
+                      disabled={bulkProcessing || !jiraConnected}
+                      style={{
+                        padding: '0.55rem 1.15rem', borderRadius: '0.5rem', fontSize: '0.82rem', fontWeight: 700,
+                        background: jiraConnected ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' : 'rgba(100, 116, 139, 0.4)',
+                        border: 'none', color: '#fff', cursor: bulkProcessing || !jiraConnected ? 'not-allowed' : 'pointer',
+                        boxShadow: jiraConnected ? '0 4px 14px rgba(34, 197, 94, 0.35)' : 'none',
+                      }}
+                    >
+                      {bulkProcessing
+                        ? `🚀 Posting (${bulkProgress.current}/${bulkProgress.total})...`
+                        : '🚀 Bulk Post to Jira'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setCsvWorklogs([]); setCsvFileName('') }}
+                      style={{
+                        padding: '0.55rem 0.85rem', borderRadius: '0.5rem', fontSize: '0.82rem', fontWeight: 700,
+                        background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)',
+                        color: '#f87171', cursor: 'pointer',
+                      }}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
+                {/* Table */}
+                <div style={{ overflowX: 'auto', borderRadius: '0.75rem', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ background: 'rgba(30, 41, 59, 0.9)', color: '#94a3b8', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                        <th style={{ padding: '0.75rem 0.85rem' }}>#</th>
+                        <th style={{ padding: '0.75rem 0.85rem' }}>Status</th>
+                        <th style={{ padding: '0.75rem 0.85rem' }}>Ticket Key</th>
+                        <th style={{ padding: '0.75rem 0.85rem' }}>Time Spent</th>
+                        <th style={{ padding: '0.75rem 0.85rem' }}>Date</th>
+                        <th style={{ padding: '0.75rem 0.85rem' }}>Work Description</th>
+                        <th style={{ padding: '0.75rem 0.85rem', textAlign: 'right' }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {csvWorklogs.map((row, idx) => (
+                        <tr key={row.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255, 255, 255, 0.02)' }}>
+                          <td style={{ padding: '0.65rem 0.85rem', color: '#64748b', fontWeight: 600 }}>{idx + 1}</td>
+                          <td style={{ padding: '0.65rem 0.85rem' }}>
+                            {row.status === 'posted' && <span style={{ color: '#4ade80', fontWeight: 700 }}>✅ Posted</span>}
+                            {row.status === 'posting' && <span style={{ color: '#38bdf8', fontWeight: 700 }}>⏳ Posting...</span>}
+                            {row.status === 'ready' && <span style={{ color: '#a7f3d0', fontWeight: 600 }}>🟢 Ready</span>}
+                            {row.status === 'invalid' && <span style={{ color: '#f87171', fontWeight: 600 }}>⚠️ {row.errorReason || 'Invalid'}</span>}
+                            {row.status === 'error' && <span style={{ color: '#ef4444', fontWeight: 700 }} title={row.errorReason}>❌ Error</span>}
+                          </td>
+                          <td style={{ padding: '0.65rem 0.85rem' }}>
+                            <input
+                              type="text"
+                              value={row.jiraTicketId}
+                              onChange={e => handleUpdateCsvRow(row.id, 'jiraTicketId', e.target.value.toUpperCase())}
+                              style={{
+                                padding: '0.35rem 0.5rem', borderRadius: '0.375rem', background: 'rgba(30, 41, 59, 0.8)',
+                                border: '1px solid rgba(255, 255, 255, 0.15)', color: '#f8fafc', fontSize: '0.8rem',
+                                fontFamily: 'monospace', fontWeight: 700, width: '100px',
+                              }}
+                            />
+                          </td>
+                          <td style={{ padding: '0.65rem 0.85rem' }}>
+                            <input
+                              type="text"
+                              value={row.timeSpent}
+                              onChange={e => handleUpdateCsvRow(row.id, 'timeSpent', e.target.value)}
+                              style={{
+                                padding: '0.35rem 0.5rem', borderRadius: '0.375rem', background: 'rgba(30, 41, 59, 0.8)',
+                                border: '1px solid rgba(255, 255, 255, 0.15)', color: '#f8fafc', fontSize: '0.8rem', width: '80px',
+                              }}
+                            />
+                          </td>
+                          <td style={{ padding: '0.65rem 0.85rem' }}>
+                            <input
+                              type="date"
+                              value={row.worklogDate}
+                              onChange={e => handleUpdateCsvRow(row.id, 'worklogDate', e.target.value)}
+                              style={{
+                                padding: '0.35rem 0.5rem', borderRadius: '0.375rem', background: 'rgba(30, 41, 59, 0.8)',
+                                border: '1px solid rgba(255, 255, 255, 0.15)', color: '#f8fafc', fontSize: '0.8rem',
+                              }}
+                            />
+                          </td>
+                          <td style={{ padding: '0.65rem 0.85rem' }}>
+                            <input
+                              type="text"
+                              value={row.workDescription}
+                              onChange={e => handleUpdateCsvRow(row.id, 'workDescription', e.target.value)}
+                              style={{
+                                width: '100%', minWidth: '220px', padding: '0.35rem 0.5rem', borderRadius: '0.375rem',
+                                background: 'rgba(30, 41, 59, 0.8)', border: '1px solid rgba(255, 255, 255, 0.15)',
+                                color: '#f8fafc', fontSize: '0.8rem',
+                              }}
+                            />
+                          </td>
+                          <td style={{ padding: '0.65rem 0.85rem', textAlign: 'right' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCsvRow(row.id)}
+                              style={{
+                                background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.9rem',
+                              }}
+                              title="Remove Row"
+                            >
+                              🗑️
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* STEP 1: INITIAL TICKET ID INPUT FIELD & FETCH BUTTON */}
-        <div style={{
+        {worklogMode === 'single' && (
+          <>
+          <div style={{
           background: 'var(--color-surface)', border: '1px solid var(--color-border)',
           borderRadius: '1rem', padding: '1.75rem', marginBottom: '2rem', backdropFilter: 'blur(16px)',
           boxShadow: '0 10px 30px var(--color-shadow)',
@@ -809,6 +1309,8 @@ export default function JiraWorklogPage() {
 
             </div>
           </div>
+        )}
+        </>
         )}
 
         {/* SAVED WORK LOG HISTORY SECTION WITH FILTER CONTROLS */}

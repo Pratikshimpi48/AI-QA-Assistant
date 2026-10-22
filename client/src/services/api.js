@@ -373,6 +373,11 @@ export async function saveJiraWorklog(payload) {
   return data
 }
 
+export async function bulkSaveJiraWorklogs(worklogs) {
+  const { data } = await api.post('/jira/worklog/bulk-save', { worklogs })
+  return data
+}
+
 export async function getJiraWorklogs() {
   const { data } = await api.get('/jira/worklogs')
   return data

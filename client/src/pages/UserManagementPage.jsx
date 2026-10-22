@@ -121,7 +121,7 @@ export default function UserManagementPage() {
                 </thead>
                 <tbody>
                   {users.map((u) => {
-                    const isOwner = u.email && u.email.toLowerCase().trim() === 'pratikshimpi48@gmail.com'
+                    const isOwner = Boolean(u.isOwner || (u.email && u.email.toLowerCase().trim() === 'pratikshimpi48@gmail.com'))
                     const isAdmin = u.role === 'admin' || isOwner
 
                     return (

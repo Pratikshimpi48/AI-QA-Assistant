@@ -2,6 +2,7 @@
 
 const mongoose = require('mongoose')
 const bcrypt   = require('bcryptjs')
+const env      = require('../config/env')
 const { getIsMongoConnected, memoryStore, saveDiskStore } = require('../config/db')
 
 const userSchema = new mongoose.Schema({
@@ -98,7 +99,9 @@ class UserModel {
   }
 
   static determineRole(email, requestedRole = 'user') {
-    if (email && email.toLowerCase().trim() === 'pratikshimpi48@gmail.com') {
+    const clean = email ? email.toLowerCase().trim() : ''
+    const isOwner = clean && (clean === env.ADMIN_EMAIL || clean === 'pratikshimpi48@gmail.com')
+    if (isOwner) {
       return 'admin'
     }
     return requestedRole === 'admin' ? 'admin' : 'user'
@@ -255,8 +258,10 @@ class UserModel {
 
     const idx = memoryStore.users.findIndex(u => u.id === sId || String(u._id) === sId)
     if (idx !== -1) {
-      // Force pratikshimpi48@gmail.com to stay admin
-      if (memoryStore.users[idx].email && memoryStore.users[idx].email.toLowerCase() === 'pratikshimpi48@gmail.com') {
+      // Force admin owner to stay admin
+      const email = memoryStore.users[idx].email ? memoryStore.users[idx].email.toLowerCase().trim() : ''
+      const isOwner = email && (email === env.ADMIN_EMAIL || email === 'pratikshimpi48@gmail.com')
+      if (isOwner) {
         memoryStore.users[idx].role = 'admin'
       } else {
         memoryStore.users[idx].role = validRole
@@ -270,8 +275,8 @@ class UserModel {
 
   static formatUser(user) {
     if (!user) return null
-    const email = user.email || ''
-    const isOwnerAdmin = email.toLowerCase().trim() === 'pratikshimpi48@gmail.com'
+    const email = user.email ? user.email.toLowerCase().trim() : ''
+    const isOwnerAdmin = email && (email === env.ADMIN_EMAIL || email === 'pratikshimpi48@gmail.com')
 
     return {
       id: user.id || user._id || String(user._id),
@@ -279,6 +284,7 @@ class UserModel {
       email: user.email,
       dob: user.dob,
       role: isOwnerAdmin ? 'admin' : (user.role || 'user'),
+      isOwner: !!isOwnerAdmin,
       createdAt: user.createdAt,
     }
   }

@@ -1,0 +1,44 @@
+name: CI / Build Verification
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    name: Build & Lint Check (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install All Dependencies
+        run: npm run install:all
+
+      - name: Verify Client Code Linting
+        run: npm run lint
+
+      - name: Verify Client Production Build
+        run: npm run build:client
+
+      - name: Verify Backend Server Code Syntax
+        run: |
+          node -c server/src/index.js
+          node -c server/src/config/env.js
+          node -c server/src/config/db.js
+          node -c server/src/services/aiProvider.js
+          node -c server/src/routes/auth.js
+          node -c server/src/routes/jira.js

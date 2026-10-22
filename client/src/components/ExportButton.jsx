@@ -22,6 +22,8 @@ export default function ExportButton({ onExport, label = 'Export Results' }) {
     }
   }
 
+  const preferredFormat = typeof window !== 'undefined' ? (localStorage.getItem('ai_qa_export_format') || 'xlsx') : 'xlsx'
+
   return (
     <div ref={menuRef} style={{ position: 'relative', display: 'inline-block' }}>
       <button
@@ -66,39 +68,56 @@ export default function ExportButton({ onExport, label = 'Export Results' }) {
           <button
             onClick={() => handleSelectFormat('xlsx')}
             style={{
-              width: '100%', display: 'flex', alignItems: 'center', gap: '0.65rem',
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '0.6rem 0.75rem', borderRadius: '0.5rem',
-              background: 'transparent', border: 'none',
+              background: preferredFormat === 'xlsx' ? 'rgba(34,197,94,0.1)' : 'transparent',
+              border: preferredFormat === 'xlsx' ? '1px solid rgba(34,197,94,0.3)' : '1px solid transparent',
               color: 'var(--color-text)', fontSize: '0.85rem', fontWeight: 600,
               cursor: 'pointer', textAlign: 'left', transition: 'background 0.15s',
+              marginBottom: '0.25rem',
             }}
             onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(34,197,94,0.15)'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            onMouseLeave={(e) => e.currentTarget.style.background = preferredFormat === 'xlsx' ? 'rgba(34,197,94,0.1)' : 'transparent'}
           >
-            <span style={{ fontSize: '1.1rem' }}>📊</span>
-            <div>
-              <div style={{ color: '#4ade80' }}>Excel (.xlsx)</div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>Formatted spreadsheet</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <span style={{ fontSize: '1.1rem' }}>📊</span>
+              <div>
+                <div style={{ color: '#4ade80' }}>Excel (.xlsx)</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>Formatted spreadsheet</div>
+              </div>
             </div>
+            {preferredFormat === 'xlsx' && (
+              <span style={{ fontSize: '0.65rem', color: '#4ade80', background: 'rgba(34,197,94,0.2)', padding: '0.1rem 0.4rem', borderRadius: '9999px', fontWeight: 700 }}>
+                Default
+              </span>
+            )}
           </button>
 
           <button
             onClick={() => handleSelectFormat('csv')}
             style={{
-              width: '100%', display: 'flex', alignItems: 'center', gap: '0.65rem',
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '0.6rem 0.75rem', borderRadius: '0.5rem',
-              background: 'transparent', border: 'none',
+              background: preferredFormat === 'csv' ? 'rgba(6,182,212,0.1)' : 'transparent',
+              border: preferredFormat === 'csv' ? '1px solid rgba(6,182,212,0.3)' : '1px solid transparent',
               color: 'var(--color-text)', fontSize: '0.85rem', fontWeight: 600,
               cursor: 'pointer', textAlign: 'left', transition: 'background 0.15s',
             }}
             onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(6,182,212,0.15)'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            onMouseLeave={(e) => e.currentTarget.style.background = preferredFormat === 'csv' ? 'rgba(6,182,212,0.1)' : 'transparent'}
           >
-            <span style={{ fontSize: '1.1rem' }}>📄</span>
-            <div>
-              <div style={{ color: '#22d3ee' }}>CSV (.csv)</div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>Comma-separated text</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <span style={{ fontSize: '1.1rem' }}>📄</span>
+              <div>
+                <div style={{ color: '#22d3ee' }}>CSV (.csv)</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>Comma-separated text</div>
+              </div>
             </div>
+            {preferredFormat === 'csv' && (
+              <span style={{ fontSize: '0.65rem', color: '#22d3ee', background: 'rgba(6,182,212,0.2)', padding: '0.1rem 0.4rem', borderRadius: '9999px', fontWeight: 700 }}>
+                Default
+              </span>
+            )}
           </button>
         </div>
       )}
