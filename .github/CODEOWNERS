@@ -1,0 +1,12 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# AI QA Assistant — Code Owners
+# ─────────────────────────────────────────────────────────────────────────────
+# This repository is created and owned by Pratik Shimpi (@Pratikshimpi48).
+# GitHub uses this file to automatically require review from the project owner
+# for any Pull Request targeting the repository before it can be merged.
+#
+# Direct pushes to production (`main`) are strictly prohibited.
+# All contributions must be reviewed and approved by the project owner.
+# ─────────────────────────────────────────────────────────────────────────────
+
+* @Pratikshimpi48

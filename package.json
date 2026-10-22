@@ -2,6 +2,7 @@
   "name": "ai-qa-assistant",
   "version": "1.0.0",
   "description": "Production-grade AI QA Assistant for generating test cases, bug reports, Jira worklogs, and QA matrices with Google Gemini and Groq.",
+  "author": "Pratik Shimpi <pratikshimpi48@gmail.com>",
   "license": "MIT",
   "private": true,
   "scripts": {

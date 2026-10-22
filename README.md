@@ -14,9 +14,10 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38bdf8.svg?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![Google Gemini](https://img.shields.io/badge/AI-Gemini_2.0_Flash-4285f4.svg?logo=google&logoColor=white)](https://aistudio.google.com/)
 [![Groq](https://img.shields.io/badge/AI-Groq_Llama_3.3_70B-f55036.svg)](https://groq.com/)
+[![Creator & Owner](https://img.shields.io/badge/Owner-Pratik%20Shimpi-blueviolet.svg?logo=github)](https://github.com/Pratikshimpi48)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-[🚀 Live Demo](https://ai-qa-assistant-ueec.onrender.com/) • [📖 Documentation](#-table-of-contents) • [🛠 Quickstart](#-quickstart-guide) • [🤝 Contributing](CONTRIBUTING.md)
+[🚀 Live Demo](https://ai-qa-assistant-ueec.onrender.com/) • [📖 Documentation](#-table-of-contents) • [🛠 Quickstart](#-quickstart-guide) • [🤝 Contributing](CONTRIBUTING.md) • [👥 Contributors](CONTRIBUTORS.md)
 
 </div>
 
@@ -253,11 +254,20 @@ AI-QA-Assistant/
 
 ---
 
+## 👑 Project Ownership & Production Governance
+
+- **Creator & Lead Maintainer**: **[Pratik Shimpi](https://github.com/Pratikshimpi48)** (`pratikshimpi48@gmail.com`)
+- **Strict Production Gatekeeping**: Open-source contributors **do not** have direct push or write privileges to the production `main` branch.
+- **Pull Request Review Workflow**: All community enhancements must be submitted through GitHub Pull Requests. Only **Pratik Shimpi** reviews, tests, and merges changes into the production branch.
+- **Contributor Recognition**: All approved contributors are officially credited in [CONTRIBUTORS.md](CONTRIBUTORS.md).
+
+---
+
 ## 🤝 Contributing
 
 We love contributions! Please read our [Contributing Guide](CONTRIBUTING.md) to learn how to clone, setup, test, and submit pull requests.
 
-Please also review our [Code of Conduct](CODE_OF_CONDUCT.md).
+Please also review our [Code of Conduct](CODE_OF_CONDUCT.md) and see our list of amazing [Contributors](CONTRIBUTORS.md).
 
 ---
 
@@ -269,4 +279,5 @@ If you discover a security vulnerability, please review our [Security Policy](SE
 
 ## 📄 License
 
-This project is licensed under the [MIT License](LICENSE) &copy; 2026 **Pratik Shimpi**.
+This project is authored and owned by **Pratik Shimpi** and licensed under the [MIT License](LICENSE) &copy; 2026 **Pratik Shimpi**.
+

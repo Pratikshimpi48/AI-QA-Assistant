@@ -26,6 +26,15 @@ This project and everyone participating in it is governed by our [Code of Conduc
 
 ---
 
+## 👑 Project Ownership & Production Merging Policy
+
+- **Sole Project Owner**: **AI QA Assistant** is created, architected, and owned by **Pratik Shimpi** ([@Pratikshimpi48](https://github.com/Pratikshimpi48)).
+- **Zero Direct Production Access**: Open-source contributors do **NOT** have direct write or push access to the production `main` branch.
+- **Required Owner Review**: All code changes must be submitted via a GitHub Pull Request from your personal fork. The Pull Request must pass automated CI checks and receive explicit review and approval from **Pratik Shimpi** before being merged to production.
+- **Contributor Recognition**: We celebrate all community contributions! Merged contributors are permanently recognized in [CONTRIBUTORS.md](CONTRIBUTORS.md) and in the git history.
+
+---
+
 ## 🛠 Prerequisites
 
 Before getting started, make sure you have the following installed:

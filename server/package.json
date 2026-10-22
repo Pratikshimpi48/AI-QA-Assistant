@@ -9,8 +9,8 @@
     "db:view": "node scripts/view-db.js"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Pratik Shimpi <pratikshimpi48@gmail.com>",
+  "license": "MIT",
   "type": "commonjs",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
